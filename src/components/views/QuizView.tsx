@@ -4,6 +4,29 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import type { Question } from "@/types/quiz";
 
+function buildExplainPrompt(question: Question): string {
+  const userAnswer = Array.isArray(question.userAnswer)
+    ? question.userAnswer.join(" | ")
+    : (question.userAnswer ?? "(skipped)");
+  const correctAnswer = Array.isArray(question.answer)
+    ? question.answer.join(" | ")
+    : question.answer;
+
+  return [
+    "I am taking a quiz on this material and was given this question:",
+    "",
+    `'${question.question}'`,
+    "",
+    `I chose this as the answer: '${userAnswer}'`,
+    "",
+    `That answer was ${question.isCorrect ? "correct" : "incorrect"}. The correct answer is '${correctAnswer}'.`,
+    "",
+    `Explanation shown in quiz: '${question.explanation || "(none)"}'`,
+    "",
+    "Help me understand this clearly in simple steps and include a quick memory tip.",
+  ].join("\n");
+}
+
 // ── MCQ OPTIONS ──────────────────────────────────────────────────────────────
 
 function MCQOptions({
@@ -159,6 +182,18 @@ function DragDropFill({
     if (nextAnswer.some((value) => !value.trim())) return;
     onAnswer(nextAnswer);
   };
+
+  useEffect(() => {
+    if (answered) return;
+    const onEnterSubmit = (event: KeyboardEvent) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      handleSubmit();
+    };
+    window.addEventListener("keydown", onEnterSubmit);
+    return () => window.removeEventListener("keydown", onEnterSubmit);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answered, placements, question.id]);
 
   const renderedQuestion = question.question.split(/\[\[(\d+)\]\]/g).map((part, index) => {
     if (index % 2 === 0) {
@@ -341,7 +376,7 @@ export default function QuizView() {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!question) return;
     if (quiz.answered) {
-      if (e.key === "Enter") { e.preventDefault(); nextQuestion(); }
+      if (e.key.toLowerCase() === "n") { e.preventDefault(); nextQuestion(); }
       return;
     }
     if (question.type === "MCQ") {
@@ -369,6 +404,7 @@ export default function QuizView() {
     question.explanation &&
     quiz.settings.explanationTiming === "after";
   const fillLabel = question.fillMode === "dragdrop" ? "Drag & Drop" : "Fill";
+  const followUpPrompt = encodeURIComponent(buildExplainPrompt(question));
 
   return (
     <div className="relative">
@@ -452,6 +488,24 @@ export default function QuizView() {
               Explanation
             </p>
             <p className="text-base text-secondary leading-[1.7]">{question.explanation}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href={`https://chatgpt.com/?q=${followUpPrompt}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+              >
+                Explain in ChatGPT ↗
+              </a>
+              <a
+                href={`https://claude.ai/?q=${followUpPrompt}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+              >
+                Explain in Claude ↗
+              </a>
+            </div>
           </div>
         )}
 
@@ -465,7 +519,7 @@ export default function QuizView() {
             >
               {isLast ? "See results →" : "Next question →"}
             </button>
-            <span className="text-xs text-secondary">or press Enter</span>
+            <span className="text-xs text-secondary">or press N</span>
           </div>
         )}
       </div>

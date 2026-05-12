@@ -10,11 +10,37 @@ function formatAnswer(value: string): string {
   return value.trim();
 }
 
+function buildExplainPrompt(question: Question): string {
+  const userAnswer = !question.userAnswer
+    ? "(skipped)"
+    : Array.isArray(question.userAnswer)
+      ? question.userAnswer.join(" | ")
+      : question.userAnswer;
+  const correctAnswer = Array.isArray(question.answer)
+    ? question.answer.join(" | ")
+    : question.answer;
+
+  return [
+    "I am taking a quiz on this material and was given this question:",
+    "",
+    `'${question.question}'`,
+    "",
+    `I chose this as the answer: '${userAnswer}'`,
+    "",
+    `That answer was ${question.isCorrect ? "correct" : "incorrect"}. The correct answer is '${correctAnswer}'.`,
+    "",
+    `Explanation shown in quiz: '${question.explanation || "(none)"}'`,
+    "",
+    "Help me understand why, then give a short trick to avoid this mistake.",
+  ].join("\n");
+}
+
 // ── REVIEW ITEM ───────────────────────────────────────────────────────────────
 
 function ReviewItem({ question, index }: { question: Question; index: number }) {
   const [showExplain, setShowExplain] = useState(false);
   const isCorrect = question.isCorrect === true;
+  const followUpPrompt = encodeURIComponent(buildExplainPrompt(question));
 
   const getUserAnswerDisplay = () => {
     if (!question.userAnswer) return "(skipped)";
@@ -75,6 +101,26 @@ function ReviewItem({ question, index }: { question: Question; index: number }) 
               >
                 {question.explanation}
               </div>
+              {showExplain && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a
+                    href={`https://chatgpt.com/?q=${followUpPrompt}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs text-primary hover:border-secondary transition-colors duration-[150ms]"
+                  >
+                    Explain in ChatGPT ↗
+                  </a>
+                  <a
+                    href={`https://claude.ai/?q=${followUpPrompt}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs text-primary hover:border-secondary transition-colors duration-[150ms]"
+                  >
+                    Explain in Claude ↗
+                  </a>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -25,6 +25,7 @@ export default function PromptView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [subject, count, activeTypes, difficulty, focus]
   );
+  const encodedPrompt = encodeURIComponent(prompt);
 
   // Slider pill position
   const sliderPct = ((count - 5) / (50 - 5)) * 100;
@@ -202,7 +203,7 @@ export default function PromptView() {
           {/* Links */}
           <div className="text-center mt-3.5 text-sm">
             <a
-              href="https://chat.openai.com"
+              href={`https://chatgpt.com/?q=${encodedPrompt}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-secondary hover:text-primary transition-colors duration-[150ms]"
@@ -211,7 +212,7 @@ export default function PromptView() {
             </a>
             <span className="text-secondary mx-2">·</span>
             <a
-              href="https://claude.ai"
+              href={`https://claude.ai/?q=${encodedPrompt}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-secondary hover:text-primary transition-colors duration-[150ms]"
