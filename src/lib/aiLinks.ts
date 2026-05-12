@@ -33,13 +33,13 @@ function normalizeConversationId(provider: AIProvider, rawRef: string): string |
 }
 
 function buildNewChatUrl(provider: AIProvider, encodedPrompt: string): string {
-  if (provider === "chatgpt") return `https://chatgpt.com/?q=${encodedPrompt}`;
-  return `https://claude.ai/?q=${encodedPrompt}`;
+  if (provider === "chatgpt") return `https://chatgpt.com/?prompt=${encodedPrompt}`;
+  return `https://claude.ai/?prompt=${encodedPrompt}`;
 }
 
 function buildContinueUrl(provider: AIProvider, conversationId: string, encodedPrompt: string): string {
-  if (provider === "chatgpt") return `https://chatgpt.com/c/${conversationId}/?q=${encodedPrompt}`;
-  return `https://claude.ai/chat/${conversationId}?q=${encodedPrompt}`;
+  if (provider === "chatgpt") return `https://chatgpt.com/c/${conversationId}?prompt=${encodedPrompt}`;
+  return `https://claude.ai/chat/${conversationId}?prompt=${encodedPrompt}`;
 }
 
 export function buildAIUrl(
