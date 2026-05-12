@@ -3,11 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { parseQuiz } from "@/lib/parser";
-import { getLastQuizText, getPreferences, saveLastQuizText, savePreferences } from "@/lib/storage";
+import {
+  getLastQuizText,
+  getPreferences,
+  saveLastQuizText,
+  savePreferences,
+  getAILinkSettings,
+  saveAILinkSettings,
+} from "@/lib/storage";
 import { DEMO_QUIZ, DEFAULT_SETTINGS } from "@/lib/constants";
 import Toggle from "@/components/ui/Toggle";
 import SegmentedControl from "@/components/ui/SegmentedControl";
-import type { QuizSettings } from "@/types/quiz";
+import type { QuizSettings, AILinkSettings, AIProvider } from "@/types/quiz";
 
 export default function InputView() {
   const { navigateBack, startQuiz, showToast } = useAppStore();
@@ -18,6 +25,8 @@ export default function InputView() {
   const [statusMsg, setStatusMsg] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<QuizSettings>(DEFAULT_SETTINGS);
+  const [aiSettings, setAiSettings] = useState<AILinkSettings | null>(null);
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load saved state on mount
@@ -29,6 +38,7 @@ export default function InputView() {
       validate(saved);
     }
     setSettings((s) => ({ ...s, ...prefs }));
+    setAiSettings(getAILinkSettings());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -68,6 +78,21 @@ export default function InputView() {
     const next = { ...settings, [key]: val };
     setSettings(next);
     savePreferences(next);
+  };
+
+  const updateProviderSettings = (provider: AIProvider, patch: any) => {
+    setAiSettings((prev) => {
+      const base = prev ?? getAILinkSettings();
+      const next: AILinkSettings = {
+        ...base,
+        [provider]: {
+          ...base[provider],
+          ...patch,
+        },
+      };
+      saveAILinkSettings({ [provider]: next[provider] });
+      return next;
+    });
   };
 
   const handleStart = () => {
@@ -226,6 +251,86 @@ export default function InputView() {
                 />
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Link Settings */}
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={() => setAiSettingsOpen((v) => !v)}
+          aria-expanded={aiSettingsOpen}
+          className="flex items-center justify-between w-full py-1 focus-visible:outline-none
+                     focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+        >
+          <span className="text-sm font-medium text-primary">AI Chat Settings</span>
+          <span
+            className={`text-xs text-secondary transition-transform duration-[250ms] ease-out
+                        ${aiSettingsOpen ? "rotate-180" : ""}`}
+          >
+            ▾
+          </span>
+        </button>
+
+        <div
+          className={`overflow-hidden transition-all duration-[250ms] ease-out
+                      ${aiSettingsOpen ? "max-h-[600px]" : "max-h-0"}`}
+        >
+          <div className="pt-5 flex flex-col gap-5 bg-surface border border-border rounded-md p-4 mt-2">
+            <p className="text-xs text-secondary">
+              Configure how explanation links open in ChatGPT and Claude. Use "Continue chat" to keep using the same conversation.
+            </p>
+            {(["chatgpt", "claude"] as AIProvider[]).map((provider) => {
+              const label = provider === "chatgpt" ? "ChatGPT" : "Claude";
+              const config = (aiSettings ?? getAILinkSettings())[provider];
+              return (
+                <div key={provider}>
+                  <p className="text-sm text-primary mb-2">{label}</p>
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => updateProviderSettings(provider, { mode: "new" })}
+                      className={`px-3 py-1.5 rounded-md border text-xs transition-colors duration-[150ms] ${
+                        config.mode === "new"
+                          ? "border-accent text-primary bg-accent/10"
+                          : "border-border text-secondary hover:text-primary"
+                      }`}
+                    >
+                      New chat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateProviderSettings(provider, { mode: "continue" })}
+                      className={`px-3 py-1.5 rounded-md border text-xs transition-colors duration-[150ms] ${
+                        config.mode === "continue"
+                          ? "border-accent text-primary bg-accent/10"
+                          : "border-border text-secondary hover:text-primary"
+                      }`}
+                    >
+                      Continue chat
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    disabled={config.mode === "new"}
+                    value={config.conversationRef}
+                    onChange={(e) => updateProviderSettings(provider, { conversationRef: e.target.value })}
+                    placeholder={config.mode === "new" ? "Select 'Continue chat' to paste URL" : "Paste chat URL or ID"}
+                    className={`w-full h-9 rounded-md px-3 text-sm transition-colors duration-[150ms]
+                               focus:outline-none
+                               ${
+                                 config.mode === "new"
+                                   ? "bg-surface border border-border text-secondary placeholder:text-secondary/50 cursor-not-allowed opacity-50"
+                                   : "bg-bg border border-border text-primary placeholder:text-secondary focus:border-accent"
+                               }`}
+                  />
+                  <p className="text-xs text-secondary mt-1">
+                    Only used in "Continue chat" mode. Falls back to new chat if invalid.
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

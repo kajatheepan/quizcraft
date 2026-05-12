@@ -37,6 +37,19 @@ export interface QuizSettings {
   timerSeconds: number;
 }
 
+export type AIProvider = "chatgpt" | "claude";
+export type AIChatMode = "new" | "continue";
+
+export interface AIProviderLinkConfig {
+  mode: AIChatMode;
+  conversationRef: string;
+}
+
+export interface AILinkSettings {
+  chatgpt: AIProviderLinkConfig;
+  claude: AIProviderLinkConfig;
+}
+
 export interface QuizState {
   questions: Question[];
   original: Question[];
@@ -70,6 +83,7 @@ export interface StoredData {
   lastQuizText?: string;
   preferences?: Partial<QuizSettings>;
   history?: HistoryEntry[];
+  aiLinks?: Partial<AILinkSettings>;
 }
 
 export type ViewName = "home" | "input" | "quiz" | "results" | "prompt";

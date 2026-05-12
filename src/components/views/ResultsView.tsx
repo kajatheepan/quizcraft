@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import { buildAIUrl } from "@/lib/aiLinks";
+import { getAILinkSettings } from "@/lib/storage";
 import { saveHistory } from "@/lib/storage";
 import { getScoreMessage } from "@/lib/quizEngine";
 import type { Question } from "@/types/quiz";
+import type { AIProvider } from "@/types/quiz";
 
 function formatAnswer(value: string): string {
   return value.trim();
@@ -37,10 +40,18 @@ function buildExplainPrompt(question: Question): string {
 
 // ── REVIEW ITEM ───────────────────────────────────────────────────────────────
 
-function ReviewItem({ question, index }: { question: Question; index: number }) {
+function ReviewItem({
+  question,
+  index,
+  onOpenProvider,
+}: {
+  question: Question;
+  index: number;
+  onOpenProvider: (provider: AIProvider, prompt: string) => void;
+}) {
   const [showExplain, setShowExplain] = useState(false);
   const isCorrect = question.isCorrect === true;
-  const followUpPrompt = encodeURIComponent(buildExplainPrompt(question));
+  const followUpPrompt = buildExplainPrompt(question);
 
   const getUserAnswerDisplay = () => {
     if (!question.userAnswer) return "(skipped)";
@@ -103,22 +114,20 @@ function ReviewItem({ question, index }: { question: Question; index: number }) 
               </div>
               {showExplain && (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <a
-                    href={`https://chatgpt.com/?q=${followUpPrompt}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => onOpenProvider("chatgpt", followUpPrompt)}
                     className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
                     Explain in ChatGPT ↗
-                  </a>
-                  <a
-                    href={`https://claude.ai/?q=${followUpPrompt}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenProvider("claude", followUpPrompt)}
                     className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
                     Explain in Claude ↗
-                  </a>
+                  </button>
                 </div>
               )}
             </>
@@ -174,6 +183,14 @@ export default function ResultsView() {
     navigator.clipboard.writeText(text).then(() => {
       showToast("Copied to clipboard!");
     }).catch(() => showToast("Could not copy"));
+  };
+
+  const handleOpenProvider = (provider: AIProvider, prompt: string) => {
+    const { url, usedFallback } = buildAIUrl(provider, prompt, getAILinkSettings());
+    if (usedFallback) {
+      showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -274,7 +291,9 @@ export default function ResultsView() {
         {displayed.length === 0 ? (
           <p className="text-sm text-secondary text-center py-6">No questions to show.</p>
         ) : (
-          displayed.map((q, i) => <ReviewItem key={q.id} question={q} index={i} />)
+          displayed.map((q, i) => (
+            <ReviewItem key={q.id} question={q} index={i} onOpenProvider={handleOpenProvider} />
+          ))
         )}
       </div>
     </div>

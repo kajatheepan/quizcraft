@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { buildPrompt } from "@/lib/quizEngine";
 import Chip from "@/components/ui/Chip";
 import SegmentedControl from "@/components/ui/SegmentedControl";
+import { buildAIUrl } from "@/lib/aiLinks";
+import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
+import type { AILinkSettings, AIProvider, AIProviderLinkConfig } from "@/types/quiz";
 
 const ALL_TYPES = ["MCQ", "FILL", "TF"] as const;
 const TYPE_LABELS: Record<string, string> = { MCQ: "MCQ", FILL: "Fill in Blank", TF: "True/False" };
@@ -19,13 +22,17 @@ export default function PromptView() {
   const [difficulty, setDifficulty] = useState("Medium");
   const [focus, setFocus] = useState("");
   const [copyLabel, setCopyLabel] = useState("Copy Prompt");
+  const [aiSettings, setAiSettings] = useState<AILinkSettings | null>(null);
 
   const prompt = useMemo(
     () => buildPrompt(subject, count, activeTypes, difficulty, focus),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [subject, count, activeTypes, difficulty, focus]
   );
-  const encodedPrompt = encodeURIComponent(prompt);
+
+  useEffect(() => {
+    setAiSettings(getAILinkSettings());
+  }, []);
 
   // Slider pill position
   const sliderPct = ((count - 5) / (50 - 5)) * 100;
@@ -48,6 +55,30 @@ export default function PromptView() {
       showToast("Prompt copied to clipboard");
       setTimeout(() => setCopyLabel("Copy Prompt"), 2000);
     }).catch(() => showToast("Copy failed — select the text manually"));
+  };
+
+  const updateProviderSettings = (provider: AIProvider, patch: Partial<AIProviderLinkConfig>) => {
+    setAiSettings((prev) => {
+      const base = prev ?? getAILinkSettings();
+      const next: AILinkSettings = {
+        ...base,
+        [provider]: {
+          ...base[provider],
+          ...patch,
+        },
+      };
+      saveAILinkSettings({ [provider]: next[provider] });
+      return next;
+    });
+  };
+
+  const openProvider = (provider: AIProvider) => {
+    const settings = aiSettings ?? getAILinkSettings();
+    const { url, usedFallback } = buildAIUrl(provider, prompt, settings);
+    if (usedFallback) {
+      showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -202,23 +233,72 @@ export default function PromptView() {
 
           {/* Links */}
           <div className="text-center mt-3.5 text-sm">
-            <a
-              href={`https://chatgpt.com/?q=${encodedPrompt}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => openProvider("chatgpt")}
               className="text-secondary hover:text-primary transition-colors duration-[150ms]"
             >
               Open ChatGPT ↗
-            </a>
+            </button>
             <span className="text-secondary mx-2">·</span>
-            <a
-              href={`https://claude.ai/?q=${encodedPrompt}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => openProvider("claude")}
               className="text-secondary hover:text-primary transition-colors duration-[150ms]"
             >
               Open Claude ↗
-            </a>
+            </button>
+          </div>
+
+          {/* AI link settings */}
+          <div className="mt-5 border border-border rounded-lg p-4">
+            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-3">
+              AI Link Settings
+            </p>
+
+            {(["chatgpt", "claude"] as AIProvider[]).map((provider) => {
+              const label = provider === "chatgpt" ? "ChatGPT" : "Claude";
+              const config = (aiSettings ?? getAILinkSettings())[provider];
+              return (
+                <div key={provider} className="mb-4 last:mb-0">
+                  <p className="text-sm text-primary mb-2">{label}</p>
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => updateProviderSettings(provider, { mode: "new" })}
+                      className={`px-3 py-1.5 rounded-md border text-xs transition-colors duration-[150ms] ${
+                        config.mode === "new"
+                          ? "border-accent text-primary bg-accent/10"
+                          : "border-border text-secondary hover:text-primary"
+                      }`}
+                    >
+                      New chat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateProviderSettings(provider, { mode: "continue" })}
+                      className={`px-3 py-1.5 rounded-md border text-xs transition-colors duration-[150ms] ${
+                        config.mode === "continue"
+                          ? "border-accent text-primary bg-accent/10"
+                          : "border-border text-secondary hover:text-primary"
+                      }`}
+                    >
+                      Continue chat
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={config.conversationRef}
+                    onChange={(e) => updateProviderSettings(provider, { conversationRef: e.target.value })}
+                    placeholder={provider === "chatgpt" ? "Chat URL or conversation ID" : "Claude chat URL or ID"}
+                    className="w-full h-10 bg-surface border border-border rounded-md px-3 text-sm text-primary
+                               placeholder:text-secondary transition-colors duration-[150ms]
+                               focus:outline-none focus:border-accent"
+                  />
+                  <p className="text-xs text-secondary mt-1.5">
+                    Used only in Continue chat mode. If invalid, it falls back to a new chat.
+                  </p>
+                </div>
+              );
+            })}
           </div>
 
           {/* Instruction */}

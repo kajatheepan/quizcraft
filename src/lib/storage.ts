@@ -1,7 +1,12 @@
 // ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
 
 import { STORAGE_KEY } from "@/lib/constants";
-import type { HistoryEntry, QuizSettings, StoredData } from "@/types/quiz";
+import type { AILinkSettings, HistoryEntry, QuizSettings, StoredData } from "@/types/quiz";
+
+const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
+  chatgpt: { mode: "new", conversationRef: "" },
+  claude: { mode: "new", conversationRef: "" },
+};
 
 function load(): StoredData {
   if (typeof window === "undefined") return {};
@@ -48,3 +53,29 @@ export function savePreferences(prefs: Partial<QuizSettings>): void {
   const data = load();
   save({ ...data, preferences: { ...(data.preferences ?? {}), ...prefs } });
 }
+
+export function getAILinkSettings(): AILinkSettings {
+  const stored = load().aiLinks ?? {};
+  return {
+    chatgpt: {
+      mode: stored.chatgpt?.mode === "continue" ? "continue" : "new",
+      conversationRef: stored.chatgpt?.conversationRef ?? "",
+    },
+    claude: {
+      mode: stored.claude?.mode === "continue" ? "continue" : "new",
+      conversationRef: stored.claude?.conversationRef ?? "",
+    },
+  };
+}
+
+export function saveAILinkSettings(settings: Partial<AILinkSettings>): void {
+  const data = load();
+  const current = getAILinkSettings();
+  const next: AILinkSettings = {
+    chatgpt: { ...current.chatgpt, ...(settings.chatgpt ?? {}) },
+    claude: { ...current.claude, ...(settings.claude ?? {}) },
+  };
+  save({ ...data, aiLinks: next });
+}
+
+export { DEFAULT_AI_LINK_SETTINGS };

@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import { buildAIUrl } from "@/lib/aiLinks";
+import { getAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
+import type { AIProvider } from "@/types/quiz";
 
 function buildExplainPrompt(question: Question): string {
   const userAnswer = Array.isArray(question.userAnswer)
@@ -338,7 +341,7 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, skipQuestion } = useAppStore();
+  const { state, answerQuestion, nextQuestion, skipQuestion, showToast } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
@@ -404,7 +407,15 @@ export default function QuizView() {
     question.explanation &&
     quiz.settings.explanationTiming === "after";
   const fillLabel = question.fillMode === "dragdrop" ? "Drag & Drop" : "Fill";
-  const followUpPrompt = encodeURIComponent(buildExplainPrompt(question));
+  const followUpPrompt = buildExplainPrompt(question);
+
+  const openProvider = (provider: AIProvider) => {
+    const { url, usedFallback } = buildAIUrl(provider, followUpPrompt, getAILinkSettings());
+    if (usedFallback) {
+      showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="relative">
@@ -488,23 +499,22 @@ export default function QuizView() {
               Explanation
             </p>
             <p className="text-base text-secondary leading-[1.7]">{question.explanation}</p>
+            <p className="text-xs text-secondary mt-2">Opens using your configured AI chat mode.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <a
-                href={`https://chatgpt.com/?q=${followUpPrompt}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => openProvider("chatgpt")}
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
               >
                 Explain in ChatGPT ↗
-              </a>
-              <a
-                href={`https://claude.ai/?q=${followUpPrompt}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              </button>
+              <button
+                type="button"
+                onClick={() => openProvider("claude")}
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
               >
                 Explain in Claude ↗
-              </a>
+              </button>
             </div>
           </div>
         )}
