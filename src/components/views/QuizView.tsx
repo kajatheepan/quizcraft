@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { getAILinkSettings } from "@/lib/storage";
@@ -43,13 +43,13 @@ function MCQOptions({
   answered: boolean;
   onAnswer: (letter: string) => void;
 }) {
-  const skipped = question.skipped === true;
+  const isActuallyAnswered = answered && question.isCorrect !== null;
   return (
     <div>
       {Object.entries(question.options).map(([letter, text]) => {
         const isCorrect = letter === question.answer;
         const isSelected = letter === question.userAnswer;
-        const showResult = answered;
+        const showResult = isActuallyAnswered;
 
         let btnClass =
           "w-full flex items-center gap-3 px-4 py-3 border border-border rounded-md mb-2 last:mb-0 " +
@@ -60,16 +60,21 @@ function MCQOptions({
           "w-6 h-6 rounded-full bg-border flex items-center justify-center " +
           "font-mono text-xs text-primary flex-shrink-0 transition-colors duration-[150ms] ";
 
-        if (skipped) {
-          btnClass += "opacity-45 ";
-        } else if (showResult) {
-          if (isCorrect) {
+        if (showResult) {
+          if (isCorrect && isSelected) {
+            // User selected correct answer - show in GREEN
             btnClass += "border-success scale-[1.01] ";
             pillClass += "bg-success !text-bg ";
           } else if (isSelected && !isCorrect) {
+            // User selected wrong answer - show in RED
             btnClass += "border-error ";
             pillClass += "bg-error !text-bg ";
+          } else if (isCorrect && !isSelected) {
+            // Correct answer but user didn't select it - show in ACCENT (informational)
+            btnClass += "border-accent ";
+            pillClass += "bg-accent !text-bg ";
           } else {
+            // Other options - grayed out
             btnClass += "opacity-40 ";
           }
         } else {
@@ -85,9 +90,7 @@ function MCQOptions({
             className={btnClass}
           >
             <span className={pillClass}>
-              {skipped
-                ? letter
-                : showResult && isCorrect
+              {showResult && isCorrect && isSelected
                 ? "✓"
                 : showResult && isSelected && !isCorrect
                 ? "✗"
@@ -107,10 +110,12 @@ function FillInput({
   question,
   answered,
   onAnswer,
+  onDraftChange,
 }: {
   question: Question;
   answered: boolean;
   onAnswer: (val: string) => void;
+  onDraftChange: (val: string) => void;
 }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,8 +123,13 @@ function FillInput({
 
   useEffect(() => {
     setValue("");
+    onDraftChange("");
     inputRef.current?.focus();
-  }, [question.id]);
+  }, [question.id, onDraftChange]);
+
+  useEffect(() => {
+    onDraftChange(value.trim());
+  }, [value, onDraftChange]);
 
   const submit = () => {
     if (!value.trim() || answered) return;
@@ -147,7 +157,7 @@ function FillInput({
           ${skipped ? "border-border opacity-60" : isCorrect ? "border-success" : isWrong ? "border-error" : "border-border"}
         `}
       />
-      {!answered && !skipped && (
+      {!answered && (
         <div className="flex justify-end mt-2.5">
           <button
             onClick={submit}
@@ -174,33 +184,40 @@ function DragDropFill({
   question,
   answered,
   onAnswer,
+  onDraftChange,
 }: {
   question: Question;
   answered: boolean;
   onAnswer: (val: string[]) => void;
+  onDraftChange: (val: string[]) => void;
 }) {
-  const blanks = question.blanks ?? [];
+  const blanks = useMemo(() => question.blanks ?? [], [question.blanks]);
   const [placements, setPlacements] = useState<Record<string, string>>({});
   const skipped = question.skipped === true;
 
   useEffect(() => {
     setPlacements({});
-  }, [question.id]);
+    onDraftChange(blanks.map(() => ""));
+  }, [question.id, blanks, onDraftChange]);
+
+  useEffect(() => {
+    onDraftChange(blanks.map((blank) => placements[blank.id] ?? ""));
+  }, [blanks, placements, onDraftChange]);
 
   const handleDrop = (blankId: string, value: string) => {
-    if (answered || skipped) return;
+    if (answered) return;
     setPlacements((current) => ({ ...current, [blankId]: value }));
   };
 
   const handleSubmit = () => {
-    if (answered || skipped) return;
+    if (answered) return;
     const nextAnswer = blanks.map((blank) => placements[blank.id] ?? "");
     if (nextAnswer.some((value) => !value.trim())) return;
     onAnswer(nextAnswer);
   };
 
   useEffect(() => {
-    if (answered || skipped) return;
+    if (answered) return;
     const onEnterSubmit = (event: KeyboardEvent) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -328,10 +345,9 @@ function TFOptions({
       "transition-all duration-[150ms] ease-out " +
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
 
-    if (skipped) return base + "opacity-45 text-primary ";
     if (answered) {
       if (isCorrect && isSelected) return base + "border-success text-success ";
-      if (isUnanswered) return base + "border-error text-error ";
+      if (isCorrect && !isSelected) return base + "border-accent text-accent ";
       if (isSelected && !isCorrect) return base + "border-error text-error ";
       return base + "opacity-40 text-primary ";
     }
@@ -343,8 +359,8 @@ function TFOptions({
       {["TRUE", "FALSE"].map((val) => (
         <button
           key={val}
-          disabled={answered || skipped}
-          onClick={() => !answered && !skipped && onAnswer(val)}
+          disabled={answered}
+          onClick={() => !answered && onAnswer(val)}
           className={getBtnClass(val)}
         >
           {val === "TRUE" ? "True" : "False"}
@@ -365,6 +381,15 @@ export default function QuizView() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef<number>(quiz.settings.timerSeconds);
   const prevIndexRef = useRef<number>(quiz.current);
+  const draftAnswerRef = useRef<string | string[] | null>(null);
+
+  const updateDraftAnswer = useCallback((response: string | string[]) => {
+    draftAnswerRef.current = response;
+  }, []);
+
+  useEffect(() => {
+    draftAnswerRef.current = null;
+  }, [question?.id]);
 
   // Timer
   useEffect(() => {
@@ -382,14 +407,22 @@ export default function QuizView() {
       return;
     }
 
-    // Resume from stored remainingSeconds or full timer
-    const start = (question?.remainingSeconds ?? quiz.settings.timerSeconds) <= 10
-      ? quiz.settings.timerSeconds
-      : (question?.remainingSeconds ?? quiz.settings.timerSeconds);
+    // Resume from stored remainingSeconds, but keep timed-out questions at 0:00.
+    const storedSeconds = question?.remainingSeconds ?? quiz.settings.timerSeconds;
+    const start = storedSeconds === 0
+      ? 0
+      : storedSeconds <= 10
+        ? quiz.settings.timerSeconds
+        : storedSeconds;
     remainingRef.current = start;
     const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
     setTimerDisplay(fmt(remainingRef.current));
     setTimerWarning(false);
+
+    if (start === 0) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
 
     timerRef.current = setInterval(() => {
       remainingRef.current--;
@@ -398,7 +431,7 @@ export default function QuizView() {
       if (remainingRef.current <= 0) {
         clearInterval(timerRef.current!);
         setRemaining(quiz.current, 0);
-        timeoutQuestion();
+        timeoutQuestion(draftAnswerRef.current);
       }
     }, 1000);
 
@@ -445,9 +478,12 @@ export default function QuizView() {
     skipQuestion();
   };
 
+  // Compute if the question is ACTUALLY answered (not just skipped)
+  const isActuallyAnswered = question.isCorrect !== null;
+
   const progress = (quiz.current / quiz.questions.length) * 100;
   const isLast = quiz.current === quiz.questions.length - 1;
-  const showExplanation = quiz.answered && !question.skipped && question.explanation && quiz.settings.explanationTiming === "after";
+  const showExplanation = isActuallyAnswered && !question.skipped && question.explanation && quiz.settings.explanationTiming === "after";
   const fillLabel = question.fillMode === "dragdrop" ? "Drag & Drop" : "Fill";
   const followUpPrompt = buildExplainPrompt(question);
 
@@ -514,17 +550,17 @@ export default function QuizView() {
           {question.skipped && <p className="text-sm text-secondary mb-4">Skipped</p>}
 
           {question.type === "MCQ" && (
-            <MCQOptions question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
+            <MCQOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
           )}
           {question.type === "FILL" && (
             question.fillMode === "dragdrop" ? (
-              <DragDropFill question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
+              <DragDropFill question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
             ) : (
-              <FillInput question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
+              <FillInput question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
             )
           )}
           {question.type === "TF" && (
-            <TFOptions question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
+            <TFOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
           )}
         </div>
 
@@ -561,7 +597,7 @@ export default function QuizView() {
             ← Previous
           </button>
 
-          {!quiz.answered && (
+          {!isActuallyAnswered && (
             <button
               onClick={handleSkipWrapped}
               className="ml-2 text-error text-sm hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -570,7 +606,7 @@ export default function QuizView() {
             </button>
           )}
 
-          {quiz.answered && (
+          {isActuallyAnswered && (
             <>
               <button
                 onClick={nextQuestion}

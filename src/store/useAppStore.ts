@@ -59,7 +59,7 @@ type Action =
   | { type: "START_QUIZ"; questions: Question[]; settings: QuizSettings }
   | { type: "ANSWER_QUESTION"; response: string | string[] }
   | { type: "SKIP_QUESTION" }
-  | { type: "TIMEOUT_QUESTION" }
+  | { type: "TIMEOUT_QUESTION"; response?: string | string[] | null }
   | { type: "NEXT_QUESTION" }
   | { type: "GOTO_QUESTION"; index: number }
   | { type: "FINISH_QUIZ" }
@@ -115,8 +115,10 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "ANSWER_QUESTION": {
       const { quiz } = state;
-      if (quiz.answered) return state;
       const q = { ...quiz.questions[quiz.current] };
+      // Only block if the question is actually answered (has both userAnswer and isCorrect set)
+      // Allow re-answering skipped questions (both userAnswer and isCorrect are null)
+      if (q.userAnswer !== null && q.isCorrect !== null) return state;
       const isCorrect = checkAnswer(q, action.response);
       q.userAnswer = action.response;
       q.isCorrect = isCorrect;
@@ -136,8 +138,9 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "SKIP_QUESTION": {
       const { quiz } = state;
-      if (quiz.answered) return state;
       const currentQuestion = quiz.questions[quiz.current];
+      // Only block if the question is actually answered (has both userAnswer and isCorrect set)
+      if (currentQuestion.userAnswer !== null && currentQuestion.isCorrect !== null) return state;
       const skippedQuestion = {
         ...currentQuestion,
         userAnswer: null,
@@ -204,24 +207,30 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "TIMEOUT_QUESTION": {
       const { quiz } = state;
-      if (quiz.answered) return state;
       const currentQuestion = quiz.questions[quiz.current];
-      const timedOutQuestion = {
-        ...currentQuestion,
-        userAnswer: null,
-        isCorrect: false,
-        skipped: false,
-      };
-      const questions = [...quiz.questions];
-      questions[quiz.current] = timedOutQuestion;
+      if (currentQuestion.isCorrect !== null) return state;
+
+      const response = action.response ?? null;
+      const isCorrect = response !== null ? checkAnswer(currentQuestion, response) : false;
 
       return {
         ...state,
         quiz: {
           ...quiz,
-          questions,
+          questions: quiz.questions.map((question, index) =>
+            index === quiz.current
+              ? {
+                  ...currentQuestion,
+                  userAnswer: response,
+                  isCorrect,
+                  skipped: false,
+                  remainingSeconds: 0,
+                }
+              : question
+          ),
           answered: true,
-          wrong: quiz.wrong + 1,
+          correct: isCorrect ? quiz.correct + 1 : quiz.correct,
+          wrong: !isCorrect ? quiz.wrong + 1 : quiz.wrong,
         },
       };
     }
@@ -341,7 +350,8 @@ export function useAppStore() {
   const loadResult = useCallback((result: ResultData) =>
     dispatch({ type: "LOAD_RESULT", result }), []);
 
-  const timeoutQuestion = useCallback(() => dispatch({ type: "TIMEOUT_QUESTION" }), []);
+  const timeoutQuestion = useCallback((response?: string | string[] | null) =>
+    dispatch({ type: "TIMEOUT_QUESTION", response }), []);
   const setRemaining = useCallback((index: number, seconds: number) => dispatch({ type: "SET_REMAINING", index, seconds }), []);
 
   return {
