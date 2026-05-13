@@ -160,12 +160,14 @@ export default function ResultsView() {
       const topic = result.questions[0]?.question.split(" ").slice(0, 4).join(" ") ?? "Quiz";
       saveHistory({
         id: String(quiz.startTime ?? Date.now()),
+        sessionId: String(quiz.startTime ?? Date.now()),
         date: new Date().toLocaleDateString(),
         completedAt: new Date().toISOString(),
         topic,
         score: result.correct,
         total: result.total,
         percentage: result.percentage,
+        result,
       });
     }
     return () => clearTimeout(t);

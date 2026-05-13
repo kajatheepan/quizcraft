@@ -2,23 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { getActiveSession, getHistory } from "@/lib/storage";
+import { getHistory, getInProgressSessions } from "@/lib/storage";
 import type { HistoryEntry, QuizSession } from "@/types/quiz";
 
+type HistoryListItem =
+  | { kind: "unfinished"; session: QuizSession; sortTime: number }
+  | { kind: "finished"; entry: HistoryEntry; sortTime: number };
+
 export default function HomeView() {
-  const { navigate, restoreSavedQuiz, discardSavedQuiz, showToast } = useAppStore();
+  const { navigate, restoreSavedQuiz, discardSavedQuiz, loadResult, showToast } = useAppStore();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [activeSession, setActiveSession] = useState<QuizSession | null>(null);
+  const [inProgressSessions, setInProgressSessions] = useState<QuizSession[]>([]);
+
+  const refreshSavedData = () => {
+    setInProgressSessions(getInProgressSessions());
+    setHistory(getHistory());
+  };
 
   useEffect(() => {
-    setActiveSession(getActiveSession());
-    setHistory(getHistory().slice(0, 5));
+    refreshSavedData();
   }, []);
 
-  const handleDiscardSavedQuiz = () => {
-    discardSavedQuiz();
-    setActiveSession(null);
+  const handleDiscardSavedQuiz = (sessionId: string) => {
+    discardSavedQuiz(sessionId);
+    refreshSavedData();
     showToast("Saved quiz discarded");
+  };
+
+  const handleReviewFinishedQuiz = (entry: HistoryEntry) => {
+    if (!entry.result) {
+      showToast("Review data is not available for this older attempt");
+      return;
+    }
+    loadResult(entry.result);
   };
 
   const formatSavedTime = (value: string) =>
@@ -28,6 +44,20 @@ export default function HomeView() {
       hour: "2-digit",
       minute: "2-digit",
     });
+
+  const latestSession = inProgressSessions[0] ?? null;
+  const historyItems: HistoryListItem[] = [
+    ...inProgressSessions.map((session) => ({
+      kind: "unfinished" as const,
+      session,
+      sortTime: new Date(session.updatedAt).getTime(),
+    })),
+    ...history.map((entry) => ({
+      kind: "finished" as const,
+      entry,
+      sortTime: new Date(entry.completedAt ?? entry.date).getTime(),
+    })),
+  ].sort((a, b) => b.sortTime - a.sortTime);
 
   return (
     <div className="flex flex-col justify-center min-h-[calc(100vh-52px)] max-w-content-sm mx-auto px-4 py-0">
@@ -46,22 +76,22 @@ export default function HomeView() {
         Paste your AI-generated quiz and start practicing with instant feedback.
       </p>
 
-      {activeSession && (
+      {latestSession && (
         <div className="bg-surface border border-border rounded-lg p-4 mb-5 shadow-card">
           <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">
             Saved quiz
           </p>
           <p className="text-sm font-medium text-primary truncate">
-            {activeSession.title}
+            {latestSession.title}
           </p>
           <p className="text-xs text-secondary mt-1">
-            Question {activeSession.quiz.current + 1} of {activeSession.quiz.questions.length}
+            Question {latestSession.quiz.current + 1} of {latestSession.quiz.questions.length}
             {" · "}
-            Last saved {formatSavedTime(activeSession.updatedAt)}
+            Last saved {formatSavedTime(latestSession.updatedAt)}
           </p>
           <div className="flex gap-3 mt-4">
             <button
-              onClick={restoreSavedQuiz}
+              onClick={() => restoreSavedQuiz(latestSession.id)}
               className="flex-1 py-2.5 px-4 bg-accent text-white rounded-md text-sm font-medium
                          hover:opacity-90 transition-opacity duration-[150ms]
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -69,7 +99,7 @@ export default function HomeView() {
               Continue quiz
             </button>
             <button
-              onClick={handleDiscardSavedQuiz}
+              onClick={() => handleDiscardSavedQuiz(latestSession.id)}
               className="py-2.5 px-4 border border-border rounded-md text-sm text-secondary
                          hover:text-primary hover:border-secondary transition-colors duration-[150ms]
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -111,34 +141,81 @@ export default function HomeView() {
       </div>
 
       {/* Recent sessions */}
-      {history.length > 0 && (
+      {historyItems.length > 0 && (
         <div>
           <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-3">
             History
           </p>
-          {history.map((entry, i) => (
-            <div
-              key={entry.id ?? `${entry.date}-${i}`}
-              aria-label={`${entry.topic} — ${entry.percentage}% on ${entry.date}`}
-              className={`
-                flex items-center justify-between py-3 border-border
-                border-b ${i === 0 ? "border-t" : ""}
-              `}
-            >
-              <span className="text-sm font-medium text-primary truncate max-w-[200px]">
-                {entry.topic}
-              </span>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-secondary">
-                  {entry.score}/{entry.total}
+          {historyItems.map((item, index) => {
+            if (item.kind === "unfinished") {
+              const { session } = item;
+              return (
+                <div
+                  key={`unfinished-${session.id}`}
+                  aria-label={`${session.title} unfinished quiz`}
+                  className={`
+                    flex items-center justify-between py-3 border-border
+                    border-b ${index === 0 ? "border-t" : ""}
+                  `}
+                >
+                  <div className="min-w-0 max-w-[60%]">
+                    <span className="text-sm font-medium text-primary truncate block">
+                      {session.title}
+                    </span>
+                    <span className="text-xs text-secondary block mt-0.5">
+                      Unfinished · Q{session.quiz.current + 1}/{session.quiz.questions.length}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-secondary">{formatSavedTime(session.updatedAt)}</span>
+                    <button
+                      onClick={() => restoreSavedQuiz(session.id)}
+                      className="text-xs text-accent hover:opacity-80 transition-opacity duration-[150ms]
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                    >
+                      Continue
+                    </button>
+                    <button
+                      onClick={() => handleDiscardSavedQuiz(session.id)}
+                      className="text-xs text-secondary hover:text-primary transition-colors duration-[150ms]
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            const { entry } = item;
+            return (
+              <div
+                key={`finished-${entry.id ?? `${entry.date}-${index}`}`}
+                aria-label={`${entry.topic} finished quiz`}
+                className={`
+                  flex items-center justify-between py-3 border-border
+                  border-b ${index === 0 ? "border-t" : ""}
+                `}
+              >
+                <span className="text-sm font-medium text-primary truncate max-w-[52%]">
+                  {entry.topic}
                 </span>
-                <span className="text-sm font-medium text-success">
-                  {entry.percentage}%
-                </span>
-                <span className="text-xs text-secondary">{entry.date}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-secondary">{entry.score}/{entry.total}</span>
+                  <span className="text-sm font-medium text-success">{entry.percentage}%</span>
+                  <span className="text-xs text-secondary">{entry.date}</span>
+                  <button
+                    onClick={() => handleReviewFinishedQuiz(entry)}
+                    className="text-xs text-accent hover:opacity-80 transition-opacity duration-[150ms]
+                               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                  >
+                    Review
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

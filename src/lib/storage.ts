@@ -11,7 +11,21 @@ const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
 function load(): StoredData {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as StoredData;
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as StoredData;
+    const sessions = raw.sessions ?? [];
+
+    // Migrate legacy single active session to multi-session storage.
+    if (raw.activeSession && sessions.length === 0) {
+      const migrated: QuizSession = {
+        ...raw.activeSession,
+        status: raw.activeSession.status ?? "in-progress",
+      };
+      const next: StoredData = { ...raw, sessions: [migrated], activeSession: null };
+      save(next);
+      return next;
+    }
+
+    return raw;
   } catch {
     return {};
   }
@@ -39,19 +53,50 @@ export function saveHistory(entry: HistoryEntry): void {
   save({ ...data, history: nextHistory });
 }
 
+export function getSessions(): QuizSession[] {
+  return load().sessions ?? [];
+}
+
+export function getInProgressSessions(): QuizSession[] {
+  return getSessions()
+    .filter((session) => session.status === "in-progress")
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export function getSessionById(sessionId: string): QuizSession | null {
+  return getSessions().find((session) => session.id === sessionId) ?? null;
+}
+
+export function saveSession(session: QuizSession): void {
+  const data = load();
+  const sessions = data.sessions ?? [];
+  const next = [session, ...sessions.filter((item) => item.id !== session.id)];
+  save({ ...data, sessions: next, activeSession: null });
+}
+
+export function clearSession(sessionId: string): void {
+  const data = load();
+  const sessions = (data.sessions ?? []).filter((session) => session.id !== sessionId);
+  save({ ...data, sessions, activeSession: null });
+}
+
 export function getActiveSession(): QuizSession | null {
-  return load().activeSession ?? null;
+  return getInProgressSessions()[0] ?? null;
 }
 
 export function saveActiveSession(session: QuizSession): void {
-  const data = load();
-  save({ ...data, activeSession: session });
+  saveSession({ ...session, status: "in-progress" });
 }
 
-export function clearActiveSession(): void {
-  const data = load();
-  const { activeSession: _activeSession, ...rest } = data;
-  save(rest);
+export function clearActiveSession(sessionId?: string): void {
+  if (sessionId) {
+    clearSession(sessionId);
+    return;
+  }
+
+  const current = getActiveSession();
+  if (!current) return;
+  clearSession(current.id);
 }
 
 export function getLastQuizText(): string {

@@ -75,25 +75,32 @@ export interface ResultData {
 
 export interface HistoryEntry {
   id?: string;
+  sessionId?: string;
   date: string;
   completedAt?: string;
   topic: string;
   score: number;
   total: number;
   percentage: number;
+  result?: ResultData;
 }
+
+export type QuizSessionStatus = "in-progress" | "completed";
 
 export interface QuizSession {
   id: string;
   title: string;
   createdAt: string;
   updatedAt: string;
+  completedAt?: string;
+  status: QuizSessionStatus;
   quiz: QuizState;
 }
 
 export interface StoredData {
   lastQuizText?: string;
   preferences?: Partial<QuizSettings>;
+  sessions?: QuizSession[];
   activeSession?: QuizSession | null;
   history?: HistoryEntry[];
   aiLinks?: Partial<AILinkSettings>;

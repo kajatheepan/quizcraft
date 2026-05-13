@@ -10,6 +10,7 @@ import { checkAnswer, prepareQuestions } from "@/lib/quizEngine";
 import {
   clearActiveSession,
   getActiveSession,
+  getSessionById,
   saveActiveSession,
 } from "@/lib/storage";
 import type {
@@ -76,7 +77,7 @@ type Action =
   | { type: "LOAD_RESULT"; result: ResultData }
   | { type: "SET_REMAINING"; index: number; seconds: number }
   | { type: "RESTORE_SESSION"; session: QuizSession }
-  | { type: "DISCARD_SESSION" };
+  | { type: "DISCARD_SESSION"; sessionId?: string };
 
 // ── REDUCER ───────────────────────────────────────────────────────────────────
 
@@ -349,13 +350,19 @@ function buildSessionFromState(state: AppState): QuizSession | null {
     title,
     createdAt: startedAt,
     updatedAt: new Date().toISOString(),
+    status: "in-progress",
     quiz,
   };
 }
 
 function syncActiveSession(action: Action, state: AppState) {
-  if (action.type === "DISCARD_SESSION" || state.view === "results") {
-    clearActiveSession();
+  if (action.type === "DISCARD_SESSION") {
+    clearActiveSession(action.sessionId);
+    return;
+  }
+
+  if (state.view === "results") {
+    clearActiveSession(String(state.quiz.startTime ?? ""));
     return;
   }
 
@@ -413,11 +420,11 @@ export function useAppStore() {
   const timeoutQuestion = useCallback((response?: string | string[] | null) =>
     dispatch({ type: "TIMEOUT_QUESTION", response }), []);
   const setRemaining = useCallback((index: number, seconds: number) => dispatch({ type: "SET_REMAINING", index, seconds }), []);
-  const restoreSavedQuiz = useCallback(() => {
-    const session = getActiveSession();
+  const restoreSavedQuiz = useCallback((sessionId?: string) => {
+    const session = sessionId ? getSessionById(sessionId) : getActiveSession();
     if (session) dispatch({ type: "RESTORE_SESSION", session });
   }, []);
-  const discardSavedQuiz = useCallback(() => dispatch({ type: "DISCARD_SESSION" }), []);
+  const discardSavedQuiz = useCallback((sessionId?: string) => dispatch({ type: "DISCARD_SESSION", sessionId }), []);
 
   return {
     state: globalState,
