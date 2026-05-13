@@ -49,7 +49,6 @@ function MCQOptions({
       {Object.entries(question.options).map(([letter, text]) => {
         const isCorrect = letter === question.answer;
         const isSelected = letter === question.userAnswer;
-        const isUnanswered = answered && !question.userAnswer && !skipped;
         const showResult = answered;
 
         let btnClass =
@@ -64,12 +63,9 @@ function MCQOptions({
         if (skipped) {
           btnClass += "opacity-45 ";
         } else if (showResult) {
-          if (isCorrect && isSelected) {
+          if (isCorrect) {
             btnClass += "border-success scale-[1.01] ";
             pillClass += "bg-success !text-bg ";
-          } else if (isUnanswered) {
-            btnClass += "border-error ";
-            pillClass += "bg-error !text-bg ";
           } else if (isSelected && !isCorrect) {
             btnClass += "border-error ";
             pillClass += "bg-error !text-bg ";
@@ -89,7 +85,13 @@ function MCQOptions({
             className={btnClass}
           >
             <span className={pillClass}>
-              {skipped ? letter : showResult && isCorrect && isSelected ? "✓" : showResult && (isSelected || isUnanswered) ? "✗" : letter}
+              {skipped
+                ? letter
+                : showResult && isCorrect
+                ? "✓"
+                : showResult && isSelected && !isCorrect
+                ? "✗"
+                : letter}
             </span>
             <span>{text}</span>
           </button>
@@ -206,7 +208,6 @@ function DragDropFill({
     };
     window.addEventListener("keydown", onEnterSubmit);
     return () => window.removeEventListener("keydown", onEnterSubmit);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answered, placements, question.id]);
 
   const renderedQuestion = question.question.split(/\[\[(\d+)\]\]/g).map((part, index) => {
@@ -300,7 +301,7 @@ function normalizeAnswer(value: string): string {
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[’']/g, "")
+    .replace(/['']/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -356,22 +357,36 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, skipQuestion, timeoutQuestion, gotoQuestion, showToast } = useAppStore();
+  const { state, answerQuestion, nextQuestion, skipQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
   const [timerWarning, setTimerWarning] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const remainingRef = useRef(quiz.settings.timerSeconds);
+  const remainingRef = useRef<number>(quiz.settings.timerSeconds);
+  const prevIndexRef = useRef<number>(quiz.current);
 
   // Timer
   useEffect(() => {
     if (!quiz.settings.timer) { setTimerDisplay(""); return; }
+
+    // Persist previous question's remaining time when switching questions
+    const prev = prevIndexRef.current;
+    if (prev !== quiz.current && typeof remainingRef.current === "number") {
+      setRemaining(prev, Math.max(0, Math.floor(remainingRef.current)));
+    }
+    prevIndexRef.current = quiz.current;
+
     if (quiz.answered) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
-    remainingRef.current = quiz.settings.timerSeconds;
+
+    // Resume from stored remainingSeconds or full timer
+    const start = (question?.remainingSeconds ?? quiz.settings.timerSeconds) <= 10
+      ? quiz.settings.timerSeconds
+      : (question?.remainingSeconds ?? quiz.settings.timerSeconds);
+    remainingRef.current = start;
     const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
     setTimerDisplay(fmt(remainingRef.current));
     setTimerWarning(false);
@@ -382,18 +397,19 @@ export default function QuizView() {
       if (remainingRef.current <= 10) setTimerWarning(true);
       if (remainingRef.current <= 0) {
         clearInterval(timerRef.current!);
+        setRemaining(quiz.current, 0);
         timeoutQuestion();
       }
     }, 1000);
 
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (typeof remainingRef.current === "number") setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current)));
+    };
   }, [quiz.current, quiz.answered]);
 
-  // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!question) return;
-    // global navigation keys
     if (e.key === "ArrowLeft") { e.preventDefault(); gotoQuestion(Math.max(0, quiz.current - 1)); return; }
     if (e.key === "ArrowRight") { e.preventDefault(); nextQuestion(); return; }
     if (quiz.answered) {
@@ -403,14 +419,14 @@ export default function QuizView() {
     if (question.type === "MCQ") {
       const map: Record<string, string> = { a: "A", b: "B", c: "C", d: "D" };
       const letter = map[e.key.toLowerCase()];
-      if (letter && question.options[letter]) answerQuestion(letter);
+      if (letter && question.options[letter]) { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion(letter); }
     }
-    if (e.key.toLowerCase() === "s") { e.preventDefault(); skipQuestion(); return; }
+    if (e.key.toLowerCase() === "s") { e.preventDefault(); setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); skipQuestion(); return; }
     if (question.type === "TF") {
-      if (e.key.toLowerCase() === "t") answerQuestion("TRUE");
-      if (e.key.toLowerCase() === "f") answerQuestion("FALSE");
+      if (e.key.toLowerCase() === "t") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("TRUE"); }
+      if (e.key.toLowerCase() === "f") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("FALSE"); }
     }
-  }, [question, quiz.answered, answerQuestion, nextQuestion, gotoQuestion, skipQuestion]);
+  }, [question, quiz.answered, answerQuestion, nextQuestion, gotoQuestion, skipQuestion, setRemaining]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -419,13 +435,19 @@ export default function QuizView() {
 
   if (!question) return null;
 
+  const handleAnswerWrapped = (response: any) => {
+    setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds)));
+    answerQuestion(response);
+  };
+
+  const handleSkipWrapped = () => {
+    setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds)));
+    skipQuestion();
+  };
+
   const progress = (quiz.current / quiz.questions.length) * 100;
   const isLast = quiz.current === quiz.questions.length - 1;
-  const showExplanation =
-    quiz.answered &&
-    !question.skipped &&
-    question.explanation &&
-    quiz.settings.explanationTiming === "after";
+  const showExplanation = quiz.answered && !question.skipped && question.explanation && quiz.settings.explanationTiming === "after";
   const fillLabel = question.fillMode === "dragdrop" ? "Drag & Drop" : "Fill";
   const followUpPrompt = buildExplainPrompt(question);
 
@@ -439,34 +461,26 @@ export default function QuizView() {
 
   return (
     <div className="relative">
-      {/* Progress bar */}
-      <div
-        className="fixed top-[52px] left-0 right-0 h-[3px] bg-border z-[99]"
-        aria-hidden="true"
-      >
-        <div
-          className="h-full bg-accent transition-[width] duration-[250ms] ease-out"
-          style={{ width: `${progress}%` }}
-        />
+      <div className="fixed top-[52px] left-0 right-0 h-[3px] bg-border z-[99]" aria-hidden="true">
+        <div className="h-full bg-accent transition-[width] duration-[250ms] ease-out" style={{ width: `${progress}%` }} />
       </div>
 
       <div className="max-w-content-md mx-auto px-4 pt-10 pb-20">
-        {/* Header */}
         <div className="mb-6">
-          {/* Question Grid Navigation */}
           <div className="grid grid-cols-6 gap-2 mb-6">
             {quiz.questions.map((_, i) => (
               <button
                 key={`idx-${i}`}
                 onClick={() => gotoQuestion(i)}
-                className={`w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] flex items-center justify-center
-                  ${i === quiz.current 
-                    ? 'bg-accent text-bg font-bold' 
+                className={`w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] flex items-center justify-center ${
+                  i === quiz.current
+                    ? "bg-accent text-bg font-bold"
                     : quiz.questions[i]?.isCorrect === true
-                    ? 'bg-success/20 border border-success text-success'
+                    ? "bg-success/20 border border-success text-success"
                     : quiz.questions[i]?.isCorrect === false
-                    ? 'bg-error/20 border border-error text-error'
-                    : 'bg-bg border border-border text-secondary hover:bg-border'}`}
+                    ? "bg-error/20 border border-error text-error"
+                    : "bg-bg border border-border text-secondary hover:bg-border"
+                }`}
                 aria-label={`Jump to question ${i + 1}`}
               >
                 {i + 1}
@@ -474,7 +488,6 @@ export default function QuizView() {
             ))}
           </div>
 
-          {/* Question Meta */}
           <div className="flex items-center justify-between">
             <div className="text-sm text-secondary">
               Question {quiz.current + 1} of {quiz.questions.length}
@@ -487,11 +500,7 @@ export default function QuizView() {
                 ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
               </span>
               {quiz.settings.timer && timerDisplay && (
-                <span
-                  className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error" : "text-secondary"}`}
-                  aria-live="polite"
-                  aria-label="Time remaining"
-                >
+                <span className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error" : "text-secondary"}`} aria-label="Time remaining">
                   {timerDisplay}
                 </span>
               )}
@@ -499,53 +508,29 @@ export default function QuizView() {
           </div>
         </div>
 
-        {/* Question card */}
         <div className="bg-surface border border-border rounded-lg p-7 shadow-card">
-          <p className="text-md font-medium text-primary leading-relaxed mb-6">
-            {question.question}
-          </p>
+          <p className="text-md font-medium text-primary leading-relaxed mb-6">{question.question}</p>
 
-          {question.skipped && (
-            <p className="text-sm text-secondary mb-4">Skipped</p>
-          )}
+          {question.skipped && <p className="text-sm text-secondary mb-4">Skipped</p>}
 
           {question.type === "MCQ" && (
-            <MCQOptions
-              question={question}
-              answered={quiz.answered}
-              onAnswer={answerQuestion}
-            />
+            <MCQOptions question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
           )}
           {question.type === "FILL" && (
             question.fillMode === "dragdrop" ? (
-              <DragDropFill
-                question={question}
-                answered={quiz.answered}
-                onAnswer={answerQuestion}
-              />
+              <DragDropFill question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
             ) : (
-              <FillInput
-                question={question}
-                answered={quiz.answered}
-                onAnswer={answerQuestion}
-              />
+              <FillInput question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
             )
           )}
           {question.type === "TF" && (
-            <TFOptions
-              question={question}
-              answered={quiz.answered}
-              onAnswer={answerQuestion}
-            />
+            <TFOptions question={question} answered={quiz.answered} onAnswer={handleAnswerWrapped} />
           )}
         </div>
 
-        {/* Explanation */}
         {showExplanation && (
           <div className="mt-5 pt-5 border-t border-border animate-fade-in" aria-live="polite">
-            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">
-              Explanation
-            </p>
+            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">Explanation</p>
             <p className="text-base text-secondary leading-[1.7]">{question.explanation}</p>
             <p className="text-xs text-secondary mt-2">Opens using your configured AI chat mode.</p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -571,17 +556,15 @@ export default function QuizView() {
           <button
             onClick={() => gotoQuestion(Math.max(0, quiz.current - 1))}
             disabled={quiz.current === 0}
-            className="text-secondary text-base hover:opacity-80 transition-opacity duration-[150ms]
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-40"
+            className="text-secondary text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-40"
           >
             ← Previous
           </button>
 
           {!quiz.answered && (
             <button
-              onClick={skipQuestion}
-              className="ml-2 text-error text-sm hover:opacity-80 transition-opacity duration-[150ms]
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              onClick={handleSkipWrapped}
+              className="ml-2 text-error text-sm hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
             >
               Skip
             </button>
@@ -591,8 +574,7 @@ export default function QuizView() {
             <>
               <button
                 onClick={nextQuestion}
-                className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms]
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
               >
                 {isLast ? "See results →" : "Next question →"}
               </button>

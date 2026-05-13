@@ -68,7 +68,8 @@ type Action =
   | { type: "SET_SETTINGS"; settings: Partial<QuizSettings> }
   | { type: "SHOW_TOAST"; message: string }
   | { type: "CLEAR_TOAST" }
-  | { type: "LOAD_RESULT"; result: ResultData };
+  | { type: "LOAD_RESULT"; result: ResultData }
+  | { type: "SET_REMAINING"; index: number; seconds: number };
 
 // ── REDUCER ───────────────────────────────────────────────────────────────────
 
@@ -272,6 +273,16 @@ function reducer(state: AppState, action: Action): AppState {
     case "LOAD_RESULT":
       return { ...state, result: action.result, view: "results" };
 
+    case "SET_REMAINING": {
+      const { quiz } = state;
+      const { index, seconds } = action;
+      if (index < 0 || index >= quiz.questions.length) return state;
+      const questions = [...quiz.questions];
+      const q = { ...questions[index], remainingSeconds: seconds };
+      questions[index] = q;
+      return { ...state, quiz: { ...quiz, questions } };
+    }
+
     default:
       return state;
   }
@@ -331,6 +342,7 @@ export function useAppStore() {
     dispatch({ type: "LOAD_RESULT", result }), []);
 
   const timeoutQuestion = useCallback(() => dispatch({ type: "TIMEOUT_QUESTION" }), []);
+  const setRemaining = useCallback((index: number, seconds: number) => dispatch({ type: "SET_REMAINING", index, seconds }), []);
 
   return {
     state: globalState,
@@ -340,6 +352,7 @@ export function useAppStore() {
     answerQuestion,
     skipQuestion,
     timeoutQuestion,
+    setRemaining,
     nextQuestion,
     retryQuiz,
     gotoQuestion,

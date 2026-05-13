@@ -23,6 +23,7 @@ export interface Question {
   userAnswer: string | string[] | null;
   isCorrect: boolean | null;
   skipped?: boolean;
+  remainingSeconds?: number;
 }
 
 export interface ParseResult {
