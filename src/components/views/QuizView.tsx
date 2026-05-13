@@ -8,9 +8,11 @@ import type { Question } from "@/types/quiz";
 import type { AIProvider } from "@/types/quiz";
 
 function buildExplainPrompt(question: Question): string {
-  const userAnswer = Array.isArray(question.userAnswer)
-    ? question.userAnswer.join(" | ")
-    : (question.userAnswer ?? "(skipped)");
+  const userAnswer = question.skipped
+    ? "(skipped)"
+    : Array.isArray(question.userAnswer)
+      ? question.userAnswer.join(" | ")
+      : (question.userAnswer ?? "(skipped)");
   const correctAnswer = Array.isArray(question.answer)
     ? question.answer.join(" | ")
     : question.answer;
@@ -41,12 +43,13 @@ function MCQOptions({
   answered: boolean;
   onAnswer: (letter: string) => void;
 }) {
+  const skipped = question.skipped === true;
   return (
     <div>
       {Object.entries(question.options).map(([letter, text]) => {
         const isCorrect = letter === question.answer;
         const isSelected = letter === question.userAnswer;
-        const isUnanswered = answered && !question.userAnswer;
+        const isUnanswered = answered && !question.userAnswer && !skipped;
         const showResult = answered;
 
         let btnClass =
@@ -58,7 +61,9 @@ function MCQOptions({
           "w-6 h-6 rounded-full bg-border flex items-center justify-center " +
           "font-mono text-xs text-primary flex-shrink-0 transition-colors duration-[150ms] ";
 
-        if (showResult) {
+        if (skipped) {
+          btnClass += "opacity-45 ";
+        } else if (showResult) {
           if (isCorrect && isSelected) {
             btnClass += "border-success scale-[1.01] ";
             pillClass += "bg-success !text-bg ";
@@ -84,7 +89,7 @@ function MCQOptions({
             className={btnClass}
           >
             <span className={pillClass}>
-              {showResult && isCorrect && isSelected ? "✓" : showResult && (isSelected || isUnanswered) ? "✗" : letter}
+              {skipped ? letter : showResult && isCorrect && isSelected ? "✓" : showResult && (isSelected || isUnanswered) ? "✗" : letter}
             </span>
             <span>{text}</span>
           </button>
@@ -107,6 +112,7 @@ function FillInput({
 }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const skipped = question.skipped === true;
 
   useEffect(() => {
     setValue("");
@@ -136,10 +142,10 @@ function FillInput({
           w-full h-12 bg-bg border rounded-md px-4 text-base text-primary font-sans
           placeholder:text-secondary transition-colors duration-[150ms]
           focus:outline-none focus:border-accent disabled:cursor-default
-          ${isCorrect ? "border-success" : isWrong ? "border-error" : "border-border"}
+          ${skipped ? "border-border opacity-60" : isCorrect ? "border-success" : isWrong ? "border-error" : "border-border"}
         `}
       />
-      {!answered && (
+      {!answered && !skipped && (
         <div className="flex justify-end mt-2.5">
           <button
             onClick={submit}
@@ -151,7 +157,7 @@ function FillInput({
           </button>
         </div>
       )}
-      {answered && (
+      {answered && !skipped && (
         <p className={`text-sm mt-2 ${isCorrect ? "text-success" : "text-error"}`}>
           {isCorrect ? "✓ Correct" : `✗ Answer: ${question.answer}`}
         </p>
@@ -173,25 +179,26 @@ function DragDropFill({
 }) {
   const blanks = question.blanks ?? [];
   const [placements, setPlacements] = useState<Record<string, string>>({});
+  const skipped = question.skipped === true;
 
   useEffect(() => {
     setPlacements({});
   }, [question.id]);
 
   const handleDrop = (blankId: string, value: string) => {
-    if (answered) return;
+    if (answered || skipped) return;
     setPlacements((current) => ({ ...current, [blankId]: value }));
   };
 
   const handleSubmit = () => {
-    if (answered) return;
+    if (answered || skipped) return;
     const nextAnswer = blanks.map((blank) => placements[blank.id] ?? "");
     if (nextAnswer.some((value) => !value.trim())) return;
     onAnswer(nextAnswer);
   };
 
   useEffect(() => {
-    if (answered) return;
+    if (answered || skipped) return;
     const onEnterSubmit = (event: KeyboardEvent) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -241,7 +248,7 @@ function DragDropFill({
   });
 
   const choices = question.choices ?? [];
-  const showFeedback = answered && question.isCorrect !== null;
+  const showFeedback = answered && question.isCorrect !== null && !skipped;
 
   return (
     <div>
@@ -310,15 +317,17 @@ function TFOptions({
   answered: boolean;
   onAnswer: (val: string) => void;
 }) {
+  const skipped = question.skipped === true;
   const getBtnClass = (val: string) => {
     const isCorrect = val === question.answer;
     const isSelected = val === question.userAnswer;
-    const isUnanswered = answered && !question.userAnswer;
+    const isUnanswered = answered && !question.userAnswer && !skipped;
     let base =
       "flex-1 h-12 border border-border rounded-md text-base font-sans " +
       "transition-all duration-[150ms] ease-out " +
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
 
+    if (skipped) return base + "opacity-45 text-primary ";
     if (answered) {
       if (isCorrect && isSelected) return base + "border-success text-success ";
       if (isUnanswered) return base + "border-error text-error ";
@@ -333,8 +342,8 @@ function TFOptions({
       {["TRUE", "FALSE"].map((val) => (
         <button
           key={val}
-          disabled={answered}
-          onClick={() => !answered && onAnswer(val)}
+          disabled={answered || skipped}
+          onClick={() => !answered && !skipped && onAnswer(val)}
           className={getBtnClass(val)}
         >
           {val === "TRUE" ? "True" : "False"}
@@ -347,7 +356,7 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, skipQuestion, showToast } = useAppStore();
+  const { state, answerQuestion, nextQuestion, skipQuestion, timeoutQuestion, gotoQuestion, showToast } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
@@ -373,7 +382,7 @@ export default function QuizView() {
       if (remainingRef.current <= 10) setTimerWarning(true);
       if (remainingRef.current <= 0) {
         clearInterval(timerRef.current!);
-        skipQuestion();
+        timeoutQuestion();
       }
     }, 1000);
 
@@ -384,8 +393,11 @@ export default function QuizView() {
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!question) return;
+    // global navigation keys
+    if (e.key === "ArrowLeft") { e.preventDefault(); gotoQuestion(Math.max(0, quiz.current - 1)); return; }
+    if (e.key === "ArrowRight") { e.preventDefault(); nextQuestion(); return; }
     if (quiz.answered) {
-      if (e.key.toLowerCase() === "n" || e.key === "ArrowRight") { e.preventDefault(); nextQuestion(); }
+      if (e.key.toLowerCase() === "n") { e.preventDefault(); nextQuestion(); }
       return;
     }
     if (question.type === "MCQ") {
@@ -393,11 +405,12 @@ export default function QuizView() {
       const letter = map[e.key.toLowerCase()];
       if (letter && question.options[letter]) answerQuestion(letter);
     }
+    if (e.key.toLowerCase() === "s") { e.preventDefault(); skipQuestion(); return; }
     if (question.type === "TF") {
       if (e.key.toLowerCase() === "t") answerQuestion("TRUE");
       if (e.key.toLowerCase() === "f") answerQuestion("FALSE");
     }
-  }, [question, quiz.answered, answerQuestion, nextQuestion]);
+  }, [question, quiz.answered, answerQuestion, nextQuestion, gotoQuestion, skipQuestion]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -410,6 +423,7 @@ export default function QuizView() {
   const isLast = quiz.current === quiz.questions.length - 1;
   const showExplanation =
     quiz.answered &&
+    !question.skipped &&
     question.explanation &&
     quiz.settings.explanationTiming === "after";
   const fillLabel = question.fillMode === "dragdrop" ? "Drag & Drop" : "Fill";
@@ -438,26 +452,50 @@ export default function QuizView() {
 
       <div className="max-w-content-md mx-auto px-4 pt-10 pb-20">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <span className="text-sm text-secondary" aria-live="polite">
-            {quiz.current + 1} / {quiz.questions.length}
-          </span>
-          <span className="text-2xs font-medium uppercase tracking-[0.05em] text-primary bg-border px-2.5 py-0.5 rounded-full">
-            {question.type === "FILL" ? fillLabel : question.type}
-          </span>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-secondary" aria-live="polite">
-              ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
-            </span>
-            {quiz.settings.timer && timerDisplay && (
-              <span
-                className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error" : "text-secondary"}`}
-                aria-live="polite"
-                aria-label="Time remaining"
+        <div className="mb-6">
+          {/* Question Grid Navigation */}
+          <div className="grid grid-cols-6 gap-2 mb-6">
+            {quiz.questions.map((_, i) => (
+              <button
+                key={`idx-${i}`}
+                onClick={() => gotoQuestion(i)}
+                className={`w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] flex items-center justify-center
+                  ${i === quiz.current 
+                    ? 'bg-accent text-bg font-bold' 
+                    : quiz.questions[i]?.isCorrect === true
+                    ? 'bg-success/20 border border-success text-success'
+                    : quiz.questions[i]?.isCorrect === false
+                    ? 'bg-error/20 border border-error text-error'
+                    : 'bg-bg border border-border text-secondary hover:bg-border'}`}
+                aria-label={`Jump to question ${i + 1}`}
               >
-                {timerDisplay}
+                {i + 1}
+              </button>
+            ))}
+          </div>
+
+          {/* Question Meta */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-secondary">
+              Question {quiz.current + 1} of {quiz.questions.length}
+            </div>
+            <span className="text-2xs font-medium uppercase tracking-[0.05em] text-primary bg-border px-2.5 py-0.5 rounded-full">
+              {question.type === "FILL" ? fillLabel : question.type}
+            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-secondary" aria-live="polite">
+                ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
               </span>
-            )}
+              {quiz.settings.timer && timerDisplay && (
+                <span
+                  className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error" : "text-secondary"}`}
+                  aria-live="polite"
+                  aria-label="Time remaining"
+                >
+                  {timerDisplay}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -466,6 +504,10 @@ export default function QuizView() {
           <p className="text-md font-medium text-primary leading-relaxed mb-6">
             {question.question}
           </p>
+
+          {question.skipped && (
+            <p className="text-sm text-secondary mb-4">Skipped</p>
+          )}
 
           {question.type === "MCQ" && (
             <MCQOptions
@@ -525,19 +567,39 @@ export default function QuizView() {
           </div>
         )}
 
-        {/* Next button */}
-        {quiz.answered && (
-          <div className="mt-6 flex items-center gap-3 animate-fade-in">
+        <div className="mt-6 flex items-center gap-3 animate-fade-in">
+          <button
+            onClick={() => gotoQuestion(Math.max(0, quiz.current - 1))}
+            disabled={quiz.current === 0}
+            className="text-secondary text-base hover:opacity-80 transition-opacity duration-[150ms]
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-40"
+          >
+            ← Previous
+          </button>
+
+          {!quiz.answered && (
             <button
-              onClick={nextQuestion}
-              className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms]
+              onClick={skipQuestion}
+              className="ml-2 text-error text-sm hover:opacity-80 transition-opacity duration-[150ms]
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
             >
-              {isLast ? "See results →" : "Next question →"}
+              Skip
             </button>
-            <span className="text-xs text-secondary">or press N</span>
-          </div>
-        )}
+          )}
+
+          {quiz.answered && (
+            <>
+              <button
+                onClick={nextQuestion}
+                className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms]
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                {isLast ? "See results →" : "Next question →"}
+              </button>
+              <span className="text-xs text-secondary">or press N</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

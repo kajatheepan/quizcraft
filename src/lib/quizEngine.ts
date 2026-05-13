@@ -52,7 +52,7 @@ function arraysMatch(left: string[], right: string[]): boolean {
 }
 
 export function prepareQuestions(questions: Question[], settings: QuizSettings): Question[] {
-  let qs: Question[] = questions.map((q) => ({ ...q, userAnswer: null, isCorrect: null }));
+  let qs: Question[] = questions.map((q) => ({ ...q, userAnswer: null, isCorrect: null, skipped: false }));
   if (settings.shuffle) qs = fisherYates(qs);
   if (settings.shuffleOptions) qs = qs.map(shuffleOptions);
   return qs;

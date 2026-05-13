@@ -22,6 +22,7 @@ export interface Question {
   explanation: string;
   userAnswer: string | string[] | null;
   isCorrect: boolean | null;
+  skipped?: boolean;
 }
 
 export interface ParseResult {

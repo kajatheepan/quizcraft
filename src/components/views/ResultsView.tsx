@@ -14,11 +14,13 @@ function formatAnswer(value: string): string {
 }
 
 function buildExplainPrompt(question: Question): string {
-  const userAnswer = !question.userAnswer
+  const userAnswer = question.skipped
     ? "(skipped)"
-    : Array.isArray(question.userAnswer)
-      ? question.userAnswer.join(" | ")
-      : question.userAnswer;
+    : !question.userAnswer
+      ? "(skipped)"
+      : Array.isArray(question.userAnswer)
+        ? question.userAnswer.join(" | ")
+        : question.userAnswer;
   const correctAnswer = Array.isArray(question.answer)
     ? question.answer.join(" | ")
     : question.answer;
@@ -50,6 +52,7 @@ function ReviewItem({
   onOpenProvider: (provider: AIProvider, prompt: string) => void;
 }) {
   const [showExplain, setShowExplain] = useState(false);
+  const isSkipped = question.skipped === true;
   const isCorrect = question.isCorrect === true;
   const followUpPrompt = buildExplainPrompt(question);
 
@@ -79,20 +82,20 @@ function ReviewItem({
       className={`
         bg-surface border border-border rounded-md py-3.5 px-4 mb-2
         border-l-2
-        ${isCorrect ? "border-l-success" : "border-l-error"}
+        ${isSkipped ? "border-l-secondary" : isCorrect ? "border-l-success" : "border-l-error"}
       `}
     >
       <div className="flex items-start gap-2.5">
-        <span className={`text-sm font-medium flex-shrink-0 mt-px ${isCorrect ? "text-success" : "text-error"}`}>
-          {isCorrect ? "✓" : "✗"}
+        <span className={`text-sm font-medium flex-shrink-0 mt-px ${isSkipped ? "text-secondary" : isCorrect ? "text-success" : "text-error"}`}>
+          {isSkipped ? "—" : isCorrect ? "✓" : "✗"}
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-primary leading-snug">
             Q{index + 1}. {question.question}
           </p>
           <div className="mt-1.5 text-xs text-secondary leading-relaxed">
-            <div>Your answer: {getUserAnswerDisplay()}</div>
-            {!isCorrect && (
+            <div>{isSkipped ? "Skipped" : `Your answer: ${getUserAnswerDisplay()}`}</div>
+            {!isCorrect && !isSkipped && (
               <div className="text-success mt-0.5">Correct: {getCorrectDisplay()}</div>
             )}
           </div>

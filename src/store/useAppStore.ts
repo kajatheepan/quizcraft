@@ -59,7 +59,9 @@ type Action =
   | { type: "START_QUIZ"; questions: Question[]; settings: QuizSettings }
   | { type: "ANSWER_QUESTION"; response: string | string[] }
   | { type: "SKIP_QUESTION" }
+  | { type: "TIMEOUT_QUESTION" }
   | { type: "NEXT_QUESTION" }
+  | { type: "GOTO_QUESTION"; index: number }
   | { type: "FINISH_QUIZ" }
   | { type: "RETRY_QUIZ" }
   | { type: "SET_RAW_TEXT"; text: string }
@@ -135,31 +137,41 @@ function reducer(state: AppState, action: Action): AppState {
       const { quiz } = state;
       if (quiz.answered) return state;
       const currentQuestion = quiz.questions[quiz.current];
+      const skippedQuestion = {
+        ...currentQuestion,
+        userAnswer: null,
+        isCorrect: null,
+        skipped: true,
+      };
+      const questions = [...quiz.questions];
+      questions[quiz.current] = skippedQuestion;
 
-      if (currentQuestion?.type === "TF") {
-        const answeredQuestion = {
-          ...currentQuestion,
-          userAnswer: "FALSE",
-          isCorrect: checkAnswer(currentQuestion, "FALSE"),
-        };
-        const questions = [...quiz.questions];
-        questions[quiz.current] = answeredQuestion;
+      const nextSkippedCount = quiz.skipped + 1;
 
+      if (quiz.current < quiz.questions.length - 1) {
         return {
           ...state,
           quiz: {
             ...quiz,
             questions,
-            answered: true,
-            correct: answeredQuestion.isCorrect ? quiz.correct + 1 : quiz.correct,
-            wrong: !answeredQuestion.isCorrect ? quiz.wrong + 1 : quiz.wrong,
+            current: quiz.current + 1,
+            answered: false,
+            skipped: nextSkippedCount,
           },
         };
       }
 
+      const result = buildResultData(questions, quiz.correct, quiz.wrong, nextSkippedCount);
+
       return {
         ...state,
-        quiz: { ...quiz, answered: true, skipped: quiz.skipped + 1 },
+        view: "results",
+        quiz: {
+          ...quiz,
+          questions,
+          skipped: nextSkippedCount,
+        },
+        result,
       };
     }
 
@@ -179,6 +191,38 @@ function reducer(state: AppState, action: Action): AppState {
         quiz.skipped
       );
       return { ...state, view: "results", result };
+    }
+
+    case "GOTO_QUESTION": {
+      const { quiz } = state;
+      const idx = Math.max(0, Math.min(action.index, quiz.questions.length - 1));
+      const target = quiz.questions[idx];
+      const answered = Boolean(target?.skipped || target?.userAnswer !== null || target?.isCorrect !== null);
+      return { ...state, quiz: { ...quiz, current: idx, answered } };
+    }
+
+    case "TIMEOUT_QUESTION": {
+      const { quiz } = state;
+      if (quiz.answered) return state;
+      const currentQuestion = quiz.questions[quiz.current];
+      const timedOutQuestion = {
+        ...currentQuestion,
+        userAnswer: null,
+        isCorrect: false,
+        skipped: false,
+      };
+      const questions = [...quiz.questions];
+      questions[quiz.current] = timedOutQuestion;
+
+      return {
+        ...state,
+        quiz: {
+          ...quiz,
+          questions,
+          answered: true,
+          wrong: quiz.wrong + 1,
+        },
+      };
     }
 
     case "FINISH_QUIZ": {
@@ -268,6 +312,7 @@ export function useAppStore() {
   const skipQuestion = useCallback(() => dispatch({ type: "SKIP_QUESTION" }), []);
 
   const nextQuestion = useCallback(() => dispatch({ type: "NEXT_QUESTION" }), []);
+  const gotoQuestion = useCallback((index: number) => dispatch({ type: "GOTO_QUESTION", index }), []);
 
   const retryQuiz = useCallback(() => dispatch({ type: "RETRY_QUIZ" }), []);
 
@@ -285,6 +330,8 @@ export function useAppStore() {
   const loadResult = useCallback((result: ResultData) =>
     dispatch({ type: "LOAD_RESULT", result }), []);
 
+  const timeoutQuestion = useCallback(() => dispatch({ type: "TIMEOUT_QUESTION" }), []);
+
   return {
     state: globalState,
     navigate,
@@ -292,8 +339,10 @@ export function useAppStore() {
     startQuiz,
     answerQuestion,
     skipQuestion,
+    timeoutQuestion,
     nextQuestion,
     retryQuiz,
+    gotoQuestion,
     setRawText,
     setSettings,
     showToast,
