@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { buildAIUrl } from "@/lib/aiLinks";
-import { getAILinkSettings } from "@/lib/storage";
+import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
-import type { AIProvider } from "@/types/quiz";
+import type { AILinkSettings, AIProvider } from "@/types/quiz";
 
 function buildExplainPrompt(question: Question): string {
   const userAnswer = question.skipped
@@ -379,6 +379,8 @@ export default function QuizView() {
   const [timerDisplay, setTimerDisplay] = useState("");
   const [timerWarning, setTimerWarning] = useState(false);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+  const [aiSettings, setAiSettings] = useState<AILinkSettings>(() => getAILinkSettings());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef<number>(quiz.settings.timerSeconds);
   const prevIndexRef = useRef<number>(quiz.current);
@@ -479,8 +481,29 @@ export default function QuizView() {
   const fillLabel = question.fillMode === "dragdrop" ? "Drag & Drop" : "Fill";
   const followUpPrompt = buildExplainPrompt(question);
 
+  const updateProviderSettings = (
+    provider: AIProvider,
+    patch: Partial<AILinkSettings[AIProvider]>
+  ) => {
+    setAiSettings((current) => {
+      const next: AILinkSettings = {
+        ...current,
+        [provider]: {
+          ...current[provider],
+          ...patch,
+        },
+      };
+      if (provider === "chatgpt") {
+        saveAILinkSettings({ chatgpt: next.chatgpt });
+      } else {
+        saveAILinkSettings({ claude: next.claude });
+      }
+      return next;
+    });
+  };
+
   const openProvider = (provider: AIProvider) => {
-    const { url, usedFallback } = buildAIUrl(provider, followUpPrompt, getAILinkSettings());
+    const { url, usedFallback } = buildAIUrl(provider, followUpPrompt, aiSettings);
     if (usedFallback) {
       showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
     }
@@ -625,24 +648,96 @@ export default function QuizView() {
 
           {showExplanation && (
             <div className="border-t border-border px-6 py-5 animate-fade-in sm:px-7" aria-live="polite">
-              <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">Explanation</p>
-              <p className="text-base text-secondary leading-[1.7]">{question.explanation}</p>
-              <p className="text-xs text-secondary mt-2">Opens using your configured AI chat mode.</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => openProvider("chatgpt")}
-                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
-                >
-                  Explain in ChatGPT ↗
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openProvider("claude")}
-                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
-                >
-                  Explain in Claude ↗
-                </button>
+              <div>
+                <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">Explanation</p>
+                <p className="text-base text-primary leading-[1.7]">{question.explanation}</p>
+              </div>
+
+              <div className="mt-5 rounded-md border border-border bg-bg p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-1">AI follow-up</p>
+                    <p className="text-xs text-secondary">
+                      Opens explanation links using your current ChatGPT and Claude chat settings.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAiSettingsOpen((current) => !current)}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    aria-expanded={aiSettingsOpen}
+                  >
+                    {aiSettingsOpen ? "Hide AI settings" : "Change AI settings"}
+                  </button>
+                </div>
+
+                {aiSettingsOpen && (
+                  <div className="mt-4 grid gap-4 border-t border-border pt-4 md:grid-cols-2">
+                    {(["chatgpt", "claude"] as AIProvider[]).map((provider) => {
+                      const label = provider === "chatgpt" ? "ChatGPT" : "Claude";
+                      const config = aiSettings[provider];
+
+                      return (
+                        <div key={provider}>
+                          <p className="text-sm text-primary mb-2">{label}</p>
+                          <div className="flex gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => updateProviderSettings(provider, { mode: "new" })}
+                              className={`px-3 py-1.5 rounded-md border text-xs transition-colors duration-[150ms] ${
+                                config.mode === "new"
+                                  ? "border-accent text-primary bg-accent/10"
+                                  : "border-border text-secondary hover:text-primary"
+                              }`}
+                            >
+                              New chat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateProviderSettings(provider, { mode: "continue" })}
+                              className={`px-3 py-1.5 rounded-md border text-xs transition-colors duration-[150ms] ${
+                                config.mode === "continue"
+                                  ? "border-accent text-primary bg-accent/10"
+                                  : "border-border text-secondary hover:text-primary"
+                              }`}
+                            >
+                              Continue chat
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            disabled={config.mode === "new"}
+                            value={config.conversationRef}
+                            onChange={(event) => updateProviderSettings(provider, { conversationRef: event.target.value })}
+                            placeholder={config.mode === "new" ? "Select continue to paste URL" : "Paste chat URL or ID"}
+                            className={`w-full h-9 rounded-md px-3 text-sm transition-colors duration-[150ms] focus:outline-none ${
+                              config.mode === "new"
+                                ? "bg-surface border border-border text-secondary placeholder:text-secondary/50 cursor-not-allowed opacity-50"
+                                : "bg-bg border border-border text-primary placeholder:text-secondary focus:border-accent"
+                            }`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openProvider("chatgpt")}
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                  >
+                    Explain in ChatGPT ↗
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openProvider("claude")}
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                  >
+                    Explain in Claude ↗
+                  </button>
+                </div>
               </div>
             </div>
           )}
