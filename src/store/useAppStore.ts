@@ -134,6 +134,29 @@ function reducer(state: AppState, action: Action): AppState {
     case "SKIP_QUESTION": {
       const { quiz } = state;
       if (quiz.answered) return state;
+      const currentQuestion = quiz.questions[quiz.current];
+
+      if (currentQuestion?.type === "TF") {
+        const answeredQuestion = {
+          ...currentQuestion,
+          userAnswer: "FALSE",
+          isCorrect: checkAnswer(currentQuestion, "FALSE"),
+        };
+        const questions = [...quiz.questions];
+        questions[quiz.current] = answeredQuestion;
+
+        return {
+          ...state,
+          quiz: {
+            ...quiz,
+            questions,
+            answered: true,
+            correct: answeredQuestion.isCorrect ? quiz.correct + 1 : quiz.correct,
+            wrong: !answeredQuestion.isCorrect ? quiz.wrong + 1 : quiz.wrong,
+          },
+        };
+      }
+
       return {
         ...state,
         quiz: { ...quiz, answered: true, skipped: quiz.skipped + 1 },

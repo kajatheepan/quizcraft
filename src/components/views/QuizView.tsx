@@ -46,6 +46,7 @@ function MCQOptions({
       {Object.entries(question.options).map(([letter, text]) => {
         const isCorrect = letter === question.answer;
         const isSelected = letter === question.userAnswer;
+        const isUnanswered = answered && !question.userAnswer;
         const showResult = answered;
 
         let btnClass =
@@ -58,9 +59,12 @@ function MCQOptions({
           "font-mono text-xs text-primary flex-shrink-0 transition-colors duration-[150ms] ";
 
         if (showResult) {
-          if (isCorrect) {
+          if (isCorrect && isSelected) {
             btnClass += "border-success scale-[1.01] ";
             pillClass += "bg-success !text-bg ";
+          } else if (isUnanswered) {
+            btnClass += "border-error ";
+            pillClass += "bg-error !text-bg ";
           } else if (isSelected && !isCorrect) {
             btnClass += "border-error ";
             pillClass += "bg-error !text-bg ";
@@ -80,7 +84,7 @@ function MCQOptions({
             className={btnClass}
           >
             <span className={pillClass}>
-              {showResult && isCorrect ? "✓" : showResult && isSelected ? "✗" : letter}
+              {showResult && isCorrect && isSelected ? "✓" : showResult && (isSelected || isUnanswered) ? "✗" : letter}
             </span>
             <span>{text}</span>
           </button>
@@ -223,7 +227,7 @@ function DragDropFill({
           "inline-flex min-w-[110px] items-center justify-center align-middle mx-1 px-3 py-1.5 rounded-md border border-dashed",
           "text-sm transition-colors duration-[150ms]",
           answered
-            ? isCorrect
+            ? isCorrect && isFilled
               ? "border-success text-success bg-success/5"
               : "border-error text-error bg-error/5"
             : isFilled
@@ -309,13 +313,15 @@ function TFOptions({
   const getBtnClass = (val: string) => {
     const isCorrect = val === question.answer;
     const isSelected = val === question.userAnswer;
+    const isUnanswered = answered && !question.userAnswer;
     let base =
       "flex-1 h-12 border border-border rounded-md text-base font-sans " +
       "transition-all duration-[150ms] ease-out " +
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
 
     if (answered) {
-      if (isCorrect) return base + "border-success text-success ";
+      if (isCorrect && isSelected) return base + "border-success text-success ";
+      if (isUnanswered) return base + "border-error text-error ";
       if (isSelected && !isCorrect) return base + "border-error text-error ";
       return base + "opacity-40 text-primary ";
     }
@@ -379,7 +385,7 @@ export default function QuizView() {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!question) return;
     if (quiz.answered) {
-      if (e.key.toLowerCase() === "n") { e.preventDefault(); nextQuestion(); }
+      if (e.key.toLowerCase() === "n" || e.key === "ArrowRight") { e.preventDefault(); nextQuestion(); }
       return;
     }
     if (question.type === "MCQ") {
