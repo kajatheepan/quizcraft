@@ -373,11 +373,12 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, skipQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
+  const { state, answerQuestion, nextQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
   const [timerWarning, setTimerWarning] = useState(false);
+  const [navigatorOpen, setNavigatorOpen] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef<number>(quiz.settings.timerSeconds);
   const prevIndexRef = useRef<number>(quiz.current);
@@ -445,21 +446,17 @@ export default function QuizView() {
     if (!question) return;
     if (e.key === "ArrowLeft") { e.preventDefault(); gotoQuestion(Math.max(0, quiz.current - 1)); return; }
     if (e.key === "ArrowRight") { e.preventDefault(); nextQuestion(); return; }
-    if (quiz.answered) {
-      if (e.key.toLowerCase() === "n") { e.preventDefault(); nextQuestion(); }
-      return;
-    }
+    if (quiz.answered) return;
     if (question.type === "MCQ") {
       const map: Record<string, string> = { a: "A", b: "B", c: "C", d: "D" };
       const letter = map[e.key.toLowerCase()];
       if (letter && question.options[letter]) { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion(letter); }
     }
-    if (e.key.toLowerCase() === "s") { e.preventDefault(); setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); skipQuestion(); return; }
     if (question.type === "TF") {
       if (e.key.toLowerCase() === "t") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("TRUE"); }
       if (e.key.toLowerCase() === "f") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("FALSE"); }
     }
-  }, [question, quiz.answered, answerQuestion, nextQuestion, gotoQuestion, skipQuestion, setRemaining]);
+  }, [question, quiz.answered, answerQuestion, nextQuestion, gotoQuestion, setRemaining]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -471,11 +468,6 @@ export default function QuizView() {
   const handleAnswerWrapped = (response: any) => {
     setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds)));
     answerQuestion(response);
-  };
-
-  const handleSkipWrapped = () => {
-    setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds)));
-    skipQuestion();
   };
 
   // Compute if the question is ACTUALLY answered (not just skipped)
@@ -495,129 +487,189 @@ export default function QuizView() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const getNavigatorButtonClass = (index: number) => {
+    const item = quiz.questions[index];
+    const base =
+      "w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] " +
+      "flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
+
+    if (index === quiz.current) return base + "bg-accent text-bg font-bold ";
+    if (item?.isCorrect === true) return base + "bg-success/20 border border-success text-success ";
+    if (item?.isCorrect === false) return base + "bg-error/20 border border-error text-error ";
+    return base + "bg-bg border border-border text-secondary hover:bg-border ";
+  };
+
+  const renderNavigatorGrid = () => (
+    <div className="grid grid-cols-5 gap-2">
+      {quiz.questions.map((_, i) => (
+        <button
+          key={`idx-${i}`}
+          onClick={() => gotoQuestion(i)}
+          className={getNavigatorButtonClass(i)}
+          aria-label={`Jump to question ${i + 1}`}
+          aria-current={i === quiz.current ? "step" : undefined}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="relative">
       <div className="fixed top-[52px] left-0 right-0 h-[3px] bg-border z-[99]" aria-hidden="true">
         <div className="h-full bg-accent transition-[width] duration-[250ms] ease-out" style={{ width: `${progress}%` }} />
       </div>
 
-      <div className="max-w-content-md mx-auto px-4 pt-10 pb-20">
-        <div className="mb-6">
-          <div className="grid grid-cols-6 gap-2 mb-6">
-            {quiz.questions.map((_, i) => (
+      <aside
+        className={[
+          "hidden lg:block fixed top-[52px] right-0 z-40 h-[calc(100vh-52px)] w-[280px]",
+          "bg-surface border-l border-border shadow-card transition-transform duration-[250ms] ease-out",
+          navigatorOpen ? "translate-x-0" : "translate-x-full",
+        ].join(" ")}
+        aria-label="Question navigation panel"
+      >
+        <button
+          type="button"
+          onClick={() => setNavigatorOpen((current) => !current)}
+          className={[
+            "absolute top-4 -left-8 h-11 w-11 rounded-full bg-accent text-bg text-2xl leading-none",
+            "border-2 border-bg shadow-card transition-colors duration-[150ms]",
+            "hover:bg-[#6B5FF0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+          ].join(" ")}
+          aria-label={navigatorOpen ? "Collapse question navigator" : "Expand question navigator"}
+          aria-expanded={navigatorOpen}
+        >
+          {navigatorOpen ? "×" : "‹"}
+        </button>
+
+        <div className="h-full overflow-y-auto px-4 pt-9 pb-8">
+          <div className="rounded-lg border border-border bg-bg p-4 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-primary">Quiz navigation</h2>
+              <span className="text-xs text-secondary">
+                {quiz.current + 1} / {quiz.questions.length}
+              </span>
+            </div>
+            {renderNavigatorGrid()}
+            <div className="mt-4 flex flex-col gap-3 text-sm">
               <button
-                key={`idx-${i}`}
-                onClick={() => gotoQuestion(i)}
-                className={`w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] flex items-center justify-center ${
-                  i === quiz.current
-                    ? "bg-accent text-bg font-bold"
-                    : quiz.questions[i]?.isCorrect === true
-                    ? "bg-success/20 border border-success text-success"
-                    : quiz.questions[i]?.isCorrect === false
-                    ? "bg-error/20 border border-error text-error"
-                    : "bg-bg border border-border text-secondary hover:bg-border"
-                }`}
-                aria-label={`Jump to question ${i + 1}`}
+                type="button"
+                onClick={nextQuestion}
+                className="text-left text-accent hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
               >
-                {i + 1}
+                {isLast ? "Finish review" : "Next question"}
               </button>
-            ))}
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="max-w-[760px] mx-auto px-4 pt-10 pb-20">
+        <div className="lg:hidden mb-5 rounded-lg border border-border bg-surface p-3">
+          <button
+            type="button"
+            onClick={() => setNavigatorOpen((current) => !current)}
+            className="flex w-full items-center justify-between text-sm text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            aria-expanded={navigatorOpen}
+          >
+            <span>
+              Questions {quiz.current + 1} / {quiz.questions.length}
+            </span>
+            <span className="text-secondary">{navigatorOpen ? "Hide" : "Show"}</span>
+          </button>
+          {navigatorOpen && <div className="mt-3">{renderNavigatorGrid()}</div>}
+        </div>
+
+        <section className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+          <div className="border-b border-border px-6 py-4 sm:px-7">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-secondary">
+                Question {quiz.current + 1} of {quiz.questions.length}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-2xs font-medium uppercase tracking-[0.05em] text-primary bg-border px-2.5 py-0.5 rounded-full">
+                  {question.type === "FILL" ? fillLabel : question.type}
+                </span>
+                <span className="text-sm text-secondary" aria-live="polite">
+                  ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
+                </span>
+                {quiz.settings.timer && timerDisplay && (
+                  <span className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error" : "text-secondary"}`} aria-label="Time remaining">
+                    {timerDisplay}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-secondary">
-              Question {quiz.current + 1} of {quiz.questions.length}
+          <div className="px-6 py-7 sm:px-7 sm:py-8">
+            <p className="text-md font-medium text-primary leading-relaxed mb-7">{question.question}</p>
+
+            {question.skipped && <p className="text-sm text-secondary mb-4">Skipped</p>}
+
+            {question.type === "MCQ" && (
+              <MCQOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
+            )}
+            {question.type === "FILL" && (
+              question.fillMode === "dragdrop" ? (
+                <DragDropFill question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
+              ) : (
+                <FillInput question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
+              )
+            )}
+            {question.type === "TF" && (
+              <TFOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
+            )}
+          </div>
+
+          {showExplanation && (
+            <div className="border-t border-border px-6 py-5 animate-fade-in sm:px-7" aria-live="polite">
+              <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">Explanation</p>
+              <p className="text-base text-secondary leading-[1.7]">{question.explanation}</p>
+              <p className="text-xs text-secondary mt-2">Opens using your configured AI chat mode.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openProvider("chatgpt")}
+                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                >
+                  Explain in ChatGPT ↗
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openProvider("claude")}
+                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                >
+                  Explain in Claude ↗
+                </button>
+              </div>
             </div>
-            <span className="text-2xs font-medium uppercase tracking-[0.05em] text-primary bg-border px-2.5 py-0.5 rounded-full">
-              {question.type === "FILL" ? fillLabel : question.type}
-            </span>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-secondary" aria-live="polite">
-                ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
-              </span>
-              {quiz.settings.timer && timerDisplay && (
-                <span className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error" : "text-secondary"}`} aria-label="Time remaining">
-                  {timerDisplay}
-                </span>
+          )}
+
+          <div className="border-t border-border px-6 py-4 sm:px-7">
+            <div className="flex flex-wrap items-center gap-3 animate-fade-in">
+              <button
+                onClick={() => gotoQuestion(Math.max(0, quiz.current - 1))}
+                disabled={quiz.current === 0}
+                className="text-secondary text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-40"
+              >
+                ← Previous
+              </button>
+
+              {isActuallyAnswered && (
+                <>
+                  <button
+                    onClick={nextQuestion}
+                    className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                  >
+                    {isLast ? "See results →" : "Next question →"}
+                  </button>
+                </>
               )}
             </div>
           </div>
-        </div>
-
-        <div className="bg-surface border border-border rounded-lg p-7 shadow-card">
-          <p className="text-md font-medium text-primary leading-relaxed mb-6">{question.question}</p>
-
-          {question.skipped && <p className="text-sm text-secondary mb-4">Skipped</p>}
-
-          {question.type === "MCQ" && (
-            <MCQOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
-          )}
-          {question.type === "FILL" && (
-            question.fillMode === "dragdrop" ? (
-              <DragDropFill question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
-            ) : (
-              <FillInput question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
-            )
-          )}
-          {question.type === "TF" && (
-            <TFOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
-          )}
-        </div>
-
-        {showExplanation && (
-          <div className="mt-5 pt-5 border-t border-border animate-fade-in" aria-live="polite">
-            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">Explanation</p>
-            <p className="text-base text-secondary leading-[1.7]">{question.explanation}</p>
-            <p className="text-xs text-secondary mt-2">Opens using your configured AI chat mode.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => openProvider("chatgpt")}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
-              >
-                Explain in ChatGPT ↗
-              </button>
-              <button
-                type="button"
-                onClick={() => openProvider("claude")}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
-              >
-                Explain in Claude ↗
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-6 flex items-center gap-3 animate-fade-in">
-          <button
-            onClick={() => gotoQuestion(Math.max(0, quiz.current - 1))}
-            disabled={quiz.current === 0}
-            className="text-secondary text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-40"
-          >
-            ← Previous
-          </button>
-
-          {!isActuallyAnswered && (
-            <button
-              onClick={handleSkipWrapped}
-              className="ml-2 text-error text-sm hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-            >
-              Skip
-            </button>
-          )}
-
-          {isActuallyAnswered && (
-            <>
-              <button
-                onClick={nextQuestion}
-                className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-              >
-                {isLast ? "See results →" : "Next question →"}
-              </button>
-              <span className="text-xs text-secondary">or press N</span>
-            </>
-          )}
-        </div>
+        </section>
       </div>
     </div>
   );
