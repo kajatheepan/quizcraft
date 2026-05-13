@@ -7,9 +7,14 @@
 import { useCallback, useEffect, useReducer } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import { checkAnswer, prepareQuestions } from "@/lib/quizEngine";
+import {
+  clearActiveSession,
+  getActiveSession,
+  saveActiveSession,
+} from "@/lib/storage";
 import type {
-  HistoryEntry,
   Question,
+  QuizSession,
   QuizSettings,
   QuizState,
   ResultData,
@@ -69,7 +74,9 @@ type Action =
   | { type: "SHOW_TOAST"; message: string }
   | { type: "CLEAR_TOAST" }
   | { type: "LOAD_RESULT"; result: ResultData }
-  | { type: "SET_REMAINING"; index: number; seconds: number };
+  | { type: "SET_REMAINING"; index: number; seconds: number }
+  | { type: "RESTORE_SESSION"; session: QuizSession }
+  | { type: "DISCARD_SESSION" };
 
 // ── REDUCER ───────────────────────────────────────────────────────────────────
 
@@ -282,6 +289,32 @@ function reducer(state: AppState, action: Action): AppState {
     case "LOAD_RESULT":
       return { ...state, result: action.result, view: "results" };
 
+    case "RESTORE_SESSION": {
+      const { quiz } = action.session;
+      const currentQuestion = quiz.questions[quiz.current];
+      return {
+        ...state,
+        view: "quiz",
+        viewHistory: [...state.viewHistory, state.view],
+        quiz: {
+          ...quiz,
+          answered: Boolean(
+            currentQuestion?.skipped ||
+            currentQuestion?.userAnswer !== null ||
+            currentQuestion?.isCorrect !== null
+          ),
+        },
+        result: null,
+      };
+    }
+
+    case "DISCARD_SESSION":
+      return {
+        ...state,
+        quiz: initialQuizState,
+        result: null,
+      };
+
     case "SET_REMAINING": {
       const { quiz } = state;
       const { index, seconds } = action;
@@ -304,8 +337,35 @@ type Listener = (state: AppState) => void;
 let globalState = initialState;
 const listeners = new Set<Listener>();
 
+function buildSessionFromState(state: AppState): QuizSession | null {
+  const { quiz } = state;
+  if (quiz.questions.length === 0 || state.view === "results") return null;
+
+  const startedAt = new Date(quiz.startTime ?? Date.now()).toISOString();
+  const title = quiz.original[0]?.question ?? quiz.questions[0]?.question ?? "Quiz";
+
+  return {
+    id: String(quiz.startTime ?? Date.now()),
+    title,
+    createdAt: startedAt,
+    updatedAt: new Date().toISOString(),
+    quiz,
+  };
+}
+
+function syncActiveSession(action: Action, state: AppState) {
+  if (action.type === "DISCARD_SESSION" || state.view === "results") {
+    clearActiveSession();
+    return;
+  }
+
+  const session = buildSessionFromState(state);
+  if (session) saveActiveSession(session);
+}
+
 function dispatch(action: Action) {
   globalState = reducer(globalState, action);
+  syncActiveSession(action, globalState);
   listeners.forEach((l) => l(globalState));
 }
 
@@ -353,6 +413,11 @@ export function useAppStore() {
   const timeoutQuestion = useCallback((response?: string | string[] | null) =>
     dispatch({ type: "TIMEOUT_QUESTION", response }), []);
   const setRemaining = useCallback((index: number, seconds: number) => dispatch({ type: "SET_REMAINING", index, seconds }), []);
+  const restoreSavedQuiz = useCallback(() => {
+    const session = getActiveSession();
+    if (session) dispatch({ type: "RESTORE_SESSION", session });
+  }, []);
+  const discardSavedQuiz = useCallback(() => dispatch({ type: "DISCARD_SESSION" }), []);
 
   return {
     state: globalState,
@@ -370,6 +435,8 @@ export function useAppStore() {
     setSettings,
     showToast,
     loadResult,
+    restoreSavedQuiz,
+    discardSavedQuiz,
   };
 }
 

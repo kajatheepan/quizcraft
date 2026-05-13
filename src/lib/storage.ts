@@ -1,7 +1,7 @@
 // ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
 
 import { STORAGE_KEY } from "@/lib/constants";
-import type { AILinkSettings, HistoryEntry, QuizSettings, StoredData } from "@/types/quiz";
+import type { AILinkSettings, HistoryEntry, QuizSession, QuizSettings, StoredData } from "@/types/quiz";
 
 const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
   chatgpt: { mode: "new", conversationRef: "" },
@@ -31,9 +31,27 @@ export function getHistory(): HistoryEntry[] {
 export function saveHistory(entry: HistoryEntry): void {
   const data = load();
   const history = data.history ?? [];
-  history.unshift(entry);
-  if (history.length > 10) history.pop();
-  save({ ...data, history });
+  const nextHistory = entry.id
+    ? history.filter((item) => item.id !== entry.id)
+    : history;
+  nextHistory.unshift(entry);
+  if (nextHistory.length > 10) nextHistory.pop();
+  save({ ...data, history: nextHistory });
+}
+
+export function getActiveSession(): QuizSession | null {
+  return load().activeSession ?? null;
+}
+
+export function saveActiveSession(session: QuizSession): void {
+  const data = load();
+  save({ ...data, activeSession: session });
+}
+
+export function clearActiveSession(): void {
+  const data = load();
+  const { activeSession: _activeSession, ...rest } = data;
+  save(rest);
 }
 
 export function getLastQuizText(): string {

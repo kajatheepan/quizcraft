@@ -4,16 +4,10 @@ import { useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function Navbar() {
-  const { state, navigate } = useAppStore();
+  const { navigate } = useAppStore();
 
   const handleLogo = () => {
-    if (state.view === "quiz") {
-      if (confirm("Quit quiz? Your progress will be lost.")) {
-        navigate("home");
-      }
-    } else {
-      navigate("home");
-    }
+    navigate("home");
   };
 
   return (

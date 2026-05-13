@@ -74,16 +74,27 @@ export interface ResultData {
 }
 
 export interface HistoryEntry {
+  id?: string;
   date: string;
+  completedAt?: string;
   topic: string;
   score: number;
   total: number;
   percentage: number;
 }
 
+export interface QuizSession {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  quiz: QuizState;
+}
+
 export interface StoredData {
   lastQuizText?: string;
   preferences?: Partial<QuizSettings>;
+  activeSession?: QuizSession | null;
   history?: HistoryEntry[];
   aiLinks?: Partial<AILinkSettings>;
 }

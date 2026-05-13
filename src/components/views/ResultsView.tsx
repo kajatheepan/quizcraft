@@ -145,7 +145,7 @@ function ReviewItem({
 
 export default function ResultsView() {
   const { state, navigate, retryQuiz, showToast } = useAppStore();
-  const { result } = state;
+  const { result, quiz } = state;
   const [filter, setFilter] = useState<"all" | "wrong">("all");
   const [barWidth, setBarWidth] = useState(0);
   const savedRef = useRef(false);
@@ -159,7 +159,9 @@ export default function ResultsView() {
       savedRef.current = true;
       const topic = result.questions[0]?.question.split(" ").slice(0, 4).join(" ") ?? "Quiz";
       saveHistory({
+        id: String(quiz.startTime ?? Date.now()),
         date: new Date().toLocaleDateString(),
+        completedAt: new Date().toISOString(),
         topic,
         score: result.correct,
         total: result.total,
@@ -167,7 +169,7 @@ export default function ResultsView() {
       });
     }
     return () => clearTimeout(t);
-  }, [result]);
+  }, [result, quiz.startTime]);
 
   if (!result) return null;
 
