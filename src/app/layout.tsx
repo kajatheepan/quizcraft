@@ -3,9 +3,59 @@ import Script from "next/script";
 import { STORAGE_KEY } from "@/lib/constants";
 import "./globals.css";
 
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const siteDescription =
+  "Paste AI-generated quizzes, practice with instant feedback, review mistakes, and study faster with QuizCraft Plus.";
+
 export const metadata: Metadata = {
-  title: "QuizCraft Plus",
-  description: "Practice quizzes, powered by AI. Paste your AI-generated quiz and start practicing with instant feedback.",
+  metadataBase: new URL(siteUrl),
+  applicationName: "QuizCraft Plus",
+  title: {
+    default: "QuizCraft Plus | Practice AI Generated Quizzes",
+    template: "%s | QuizCraft Plus",
+  },
+  description: siteDescription,
+  keywords: [
+    "AI quiz",
+    "quiz practice",
+    "study tool",
+    "revision tool",
+    "AI generated quizzes",
+    "flashcard alternative",
+    "learning app",
+  ],
+  authors: [{ name: "QuizCraft Plus" }],
+  creator: "QuizCraft Plus",
+  publisher: "QuizCraft Plus",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "QuizCraft Plus",
+    title: "QuizCraft Plus | Practice AI Generated Quizzes",
+    description: siteDescription,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "QuizCraft Plus - Practice AI generated quizzes",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "QuizCraft Plus | Practice AI Generated Quizzes",
+    description: siteDescription,
+    images: ["/opengraph-image"],
+  },
+  icons: {
+    icon: "/icon",
+    apple: "/apple-icon",
+  },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
