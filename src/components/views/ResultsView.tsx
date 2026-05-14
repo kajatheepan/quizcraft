@@ -9,6 +9,8 @@ import { getScoreMessage } from "@/lib/quizEngine";
 import type { Question } from "@/types/quiz";
 import type { AIProvider } from "@/types/quiz";
 
+type ReviewFilter = "all" | "review" | "correct" | "wrong" | "skipped";
+
 function getQuestionStatus(question: Question) {
   if (question.status) return question.status;
   if (question.isCorrect !== null) return "answered";
@@ -153,7 +155,7 @@ function ReviewItem({
 export default function ResultsView() {
   const { state, navigate, retryQuiz, showToast } = useAppStore();
   const { result, quiz } = state;
-  const [filter, setFilter] = useState<"all" | "wrong">("all");
+  const [filter, setFilter] = useState<ReviewFilter>("all");
   const [barWidth, setBarWidth] = useState(0);
   const savedRef = useRef(false);
 
@@ -188,9 +190,16 @@ export default function ResultsView() {
   const skipPct = (skipped / total) * 100;
   const message = getScoreMessage(percentage);
 
-  const displayed = filter === "wrong"
-    ? questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === false)
-    : questions;
+  const displayed =
+    filter === "review"
+      ? questions.filter((q) => getQuestionStatus(q) === "skipped" || q.isCorrect === false)
+      : filter === "correct"
+        ? questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === true)
+        : filter === "wrong"
+          ? questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === false)
+      : filter === "skipped"
+        ? questions.filter((q) => getQuestionStatus(q) === "skipped")
+        : questions;
 
   const handleShare = () => {
     const text = `I scored ${percentage}% on a quiz! (${correct}/${total} correct) — QuizCraft Plus`;
@@ -287,15 +296,21 @@ export default function ResultsView() {
 
       {/* Filter */}
       <div className="flex justify-end gap-3 mb-4 text-sm">
-        {(["all", "wrong"] as const).map((f) => (
+        {([
+          { value: "all", label: "All" },
+          { value: "review", label: "Review needed" },
+          { value: "correct", label: "Correct" },
+          { value: "wrong", label: "Wrong" },
+          { value: "skipped", label: "Skipped" },
+        ] as const).map((item) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
+            key={item.value}
+            onClick={() => setFilter(item.value)}
             className={`transition-colors duration-[150ms] focus-visible:outline-none
                         focus-visible:ring-2 focus-visible:ring-accent rounded-sm
-                        ${filter === f ? "text-primary" : "text-secondary hover:text-primary"}`}
+                        ${filter === item.value ? "text-primary" : "text-secondary hover:text-primary"}`}
           >
-            {f === "all" ? "All" : "Wrong only"}
+            {item.label}
           </button>
         ))}
       </div>
