@@ -415,7 +415,10 @@ export default function QuizView() {
   const remainingRef = useRef<number>(quiz.settings.timerSeconds);
   const prevIndexRef = useRef<number>(quiz.current);
   const draftAnswerRef = useRef<string | string[] | null>(null);
-  const unresolvedCount = quiz.questions.filter((item) => item.status !== "answered").length;
+  const unresolvedCount = useMemo(
+    () => quiz.questions.filter((item) => item.status !== "answered").length,
+    [quiz.questions]
+  );
 
   const updateDraftAnswer = useCallback((response: string | string[]) => {
     draftAnswerRef.current = response;
@@ -595,6 +598,56 @@ export default function QuizView() {
     };
   }, [pendingConfirmAction]);
 
+  const getNavigatorButtonClass = useCallback((index: number) => {
+    const item = quiz.questions[index];
+    const base =
+      "w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] " +
+      "flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
+
+    if (index === quiz.current) return base + "bg-accent text-bg font-bold ";
+    if (item?.status === "answered" && item?.isCorrect === true) return base + "bg-success/20 border border-success text-success ";
+    if (item?.status === "answered" && item?.isCorrect === false) return base + "bg-error/20 border border-error text-error ";
+    if (item?.status === "skipped") return base + "bg-border/60 border border-border text-secondary ";
+    return base + "bg-bg border border-border text-secondary hover:bg-border ";
+  }, [quiz.current, quiz.questions]);
+
+  const requestNavigation = useCallback((action: ConfirmAction) => {
+    if (action.type === "goto") {
+      if (action.index === quiz.current) return;
+      gotoQuestion(action.index);
+      return;
+    }
+
+    if (action.type === "next") {
+      nextQuestion();
+      return;
+    }
+
+    if (unresolvedCount > 0) {
+      setPendingConfirmAction(action);
+      return;
+    }
+    finishQuiz();
+  }, [finishQuiz, gotoQuestion, nextQuestion, quiz.current, unresolvedCount]);
+
+  const renderNavigatorGrid = useCallback(() => (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(2rem,1fr))] gap-2">
+      {quiz.questions.map((_, i) => (
+        <button
+          key={`idx-${i}`}
+          type="button"
+          onClick={() => requestNavigation({ type: "goto", index: i })}
+          data-tutorial="quiz-nav-jump"
+          className={getNavigatorButtonClass(i)}
+          aria-label={`Jump to question ${i + 1}`}
+          aria-current={i === quiz.current ? "step" : undefined}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  ), [getNavigatorButtonClass, quiz.current, quiz.questions, requestNavigation]);
+
   if (!question) {
     return (
       <div className="max-w-content-sm mx-auto px-4 pt-12 pb-20">
@@ -635,7 +688,10 @@ export default function QuizView() {
   // Compute if the question is ACTUALLY answered (not just skipped)
   const isActuallyAnswered = question.status === "answered";
 
-  const progress = (quiz.current / quiz.questions.length) * 100;
+  const progress = useMemo(
+    () => (quiz.current / quiz.questions.length) * 100,
+    [quiz.current, quiz.questions.length]
+  );
   const isLast = quiz.current === quiz.questions.length - 1;
   const showExplanation = isActuallyAnswered && question.explanation && quiz.settings.explanationTiming === "after";
   const followUpPrompt = buildExplainPrompt(question);
@@ -678,38 +734,6 @@ export default function QuizView() {
     showToast("Copy failed. Select the text and copy manually.");
   };
 
-  const getNavigatorButtonClass = (index: number) => {
-    const item = quiz.questions[index];
-    const base =
-      "w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] " +
-      "flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
-
-    if (index === quiz.current) return base + "bg-accent text-bg font-bold ";
-    if (item?.status === "answered" && item?.isCorrect === true) return base + "bg-success/20 border border-success text-success ";
-    if (item?.status === "answered" && item?.isCorrect === false) return base + "bg-error/20 border border-error text-error ";
-    if (item?.status === "skipped") return base + "bg-border/60 border border-border text-secondary ";
-    return base + "bg-bg border border-border text-secondary hover:bg-border ";
-  };
-
-  const requestNavigation = (action: ConfirmAction) => {
-    if (action.type === "goto") {
-      if (action.index === quiz.current) return;
-      gotoQuestion(action.index);
-      return;
-    }
-
-    if (action.type === "next") {
-      nextQuestion();
-      return;
-    }
-
-    if (unresolvedCount > 0) {
-      setPendingConfirmAction(action);
-      return;
-    }
-    finishQuiz();
-  };
-
   const handleForward = () => {
     if (isLast) {
       requestNavigation({ type: "finish" });
@@ -747,24 +771,6 @@ export default function QuizView() {
   const confirmTitle = "Finish with pending questions?";
   const confirmBody = `You have ${unresolvedCount} skipped or unanswered question${unresolvedCount === 1 ? "" : "s"}. Results will count them as skipped.`;
   const confirmLabel = "Finish quiz";
-
-  const renderNavigatorGrid = () => (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(2rem,1fr))] gap-2">
-      {quiz.questions.map((_, i) => (
-        <button
-          key={`idx-${i}`}
-          type="button"
-          onClick={() => requestNavigation({ type: "goto", index: i })}
-          data-tutorial="quiz-nav-jump"
-          className={getNavigatorButtonClass(i)}
-          aria-label={`Jump to question ${i + 1}`}
-          aria-current={i === quiz.current ? "step" : undefined}
-        >
-          {i + 1}
-        </button>
-      ))}
-    </div>
-  );
 
   return (
     <div className="relative">

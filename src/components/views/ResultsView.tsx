@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -53,7 +53,7 @@ function buildExplainPrompt(question: Question): string {
 
 // ── REVIEW ITEM ───────────────────────────────────────────────────────────────
 
-function ReviewItem({
+const ReviewItem = memo(function ReviewItem({
   question,
   index,
   onOpenProvider,
@@ -171,7 +171,7 @@ function ReviewItem({
       </div>
     </div>
   );
-}
+});
 
 // ── MAIN RESULTS VIEW ─────────────────────────────────────────────────────────
 
@@ -205,6 +205,35 @@ export default function ResultsView() {
     return () => clearTimeout(t);
   }, [result, quiz.startTime]);
 
+  const correct = result?.correct ?? 0;
+  const wrong = result?.wrong ?? 0;
+  const skipped = result?.skipped ?? 0;
+  const total = result?.total ?? 0;
+  const percentage = result?.percentage ?? 0;
+  const questions = result?.questions ?? [];
+
+  const { correctPct, wrongPct, skipPct } = useMemo(() => ({
+    correctPct: total > 0 ? (correct / total) * 100 : 0,
+    wrongPct: total > 0 ? (wrong / total) * 100 : 0,
+    skipPct: total > 0 ? (skipped / total) * 100 : 0,
+  }), [correct, wrong, skipped, total]);
+
+  const displayed = useMemo(() => {
+    if (filter === "review") {
+      return questions.filter((q) => getQuestionStatus(q) === "skipped" || q.isCorrect === false);
+    }
+    if (filter === "correct") {
+      return questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === true);
+    }
+    if (filter === "wrong") {
+      return questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === false);
+    }
+    if (filter === "skipped") {
+      return questions.filter((q) => getQuestionStatus(q) === "skipped");
+    }
+    return questions;
+  }, [filter, questions]);
+
   if (!result) {
     return (
       <div className="max-w-content-sm mx-auto px-4 pt-12 pb-20">
@@ -237,22 +266,7 @@ export default function ResultsView() {
     );
   }
 
-  const { correct, wrong, skipped, total, percentage, questions } = result;
-  const correctPct = (correct / total) * 100;
-  const wrongPct = (wrong / total) * 100;
-  const skipPct = (skipped / total) * 100;
   const message = getScoreMessage(percentage);
-
-  const displayed =
-    filter === "review"
-      ? questions.filter((q) => getQuestionStatus(q) === "skipped" || q.isCorrect === false)
-      : filter === "correct"
-        ? questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === true)
-        : filter === "wrong"
-          ? questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === false)
-      : filter === "skipped"
-        ? questions.filter((q) => getQuestionStatus(q) === "skipped")
-        : questions;
 
   const handleShare = async () => {
     const text = `I scored ${percentage}% on a quiz! (${correct}/${total} correct) — QuizCraft Plus`;

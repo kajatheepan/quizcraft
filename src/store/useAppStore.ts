@@ -469,4 +469,5 @@ export function useAppStore() {
 }
 
 export type { AppState };
+export const __test__ = { reducer, initialState };
 export { dispatch };
