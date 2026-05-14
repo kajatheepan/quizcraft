@@ -68,13 +68,22 @@ export default function HomeView() {
 
       {/* Heading */}
       <h1 className="text-[2.5rem] font-semibold text-primary leading-[1.15] tracking-tight mb-5">
-        Practice quizzes,<br />powered by AI.
+        Your Quiz Lab<br />for Fast Revision
       </h1>
 
       {/* Body */}
       <p className="text-base text-secondary mb-9">
-        Paste your AI-generated quiz and start practicing with instant feedback.
+        Practice the quizzes you generate using ChatGPT or Claude in an interactive way.
       </p>
+
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event("start-interactive-tutorial"))}
+        className="self-start text-xs text-secondary hover:text-primary transition-colors duration-[150ms]
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm mb-6"
+      >
+        How to use QuizCraft Plus
+      </button>
 
       {latestSession && (
         <div className="bg-surface border border-border rounded-lg p-4 mb-5 shadow-card">
@@ -113,6 +122,7 @@ export default function HomeView() {
       {/* Primary CTA */}
       <button
         onClick={() => navigate("input")}
+        data-tutorial="home-paste-quiz"
         className="w-full py-3.5 px-5 bg-accent text-white rounded-lg
                    text-base font-medium text-center shadow-card
                    hover:opacity-90 active:scale-[0.99]
@@ -218,6 +228,7 @@ export default function HomeView() {
           })}
         </div>
       )}
+
     </div>
   );
 }

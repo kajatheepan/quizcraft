@@ -100,6 +100,7 @@ export interface QuizSession {
 export interface StoredData {
   lastQuizText?: string;
   preferences?: Partial<QuizSettings>;
+  tutorialSeen?: boolean;
   sessions?: QuizSession[];
   activeSession?: QuizSession | null;
   history?: HistoryEntry[];

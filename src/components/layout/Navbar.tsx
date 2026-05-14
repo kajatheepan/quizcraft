@@ -22,10 +22,10 @@ export default function Navbar() {
         onClick={handleLogo}
         onKeyDown={(e) => e.key === "Enter" && handleLogo()}
         className="text-[15px] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-sm"
-        aria-label="QuizCraft AI — go to home"
+        aria-label="QuizCraft Plus — go to home"
       >
         <span className="font-semibold text-primary">QuizCraft</span>
-        <span className="font-normal text-secondary"> AI</span>
+        <span className="font-normal text-secondary"> Plus</span>
       </button>
 
       {/* Right */}
@@ -33,6 +33,7 @@ export default function Navbar() {
         {/* Get AI Prompt */}
         <button
           onClick={() => navigate("prompt")}
+          data-tutorial="nav-prompt"
           className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms] hidden sm:block"
           aria-label="Get AI Prompt"
         >
@@ -40,6 +41,7 @@ export default function Navbar() {
         </button>
         <button
           onClick={() => navigate("prompt")}
+          data-tutorial="nav-prompt"
           className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms] sm:hidden"
           aria-label="Get AI Prompt"
         >

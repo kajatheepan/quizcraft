@@ -9,6 +9,7 @@ import InputView from "@/components/views/InputView";
 import QuizView from "@/components/views/QuizView";
 import ResultsView from "@/components/views/ResultsView";
 import PromptView from "@/components/views/PromptView";
+import InteractiveTutorial from "@/components/tutorial/InteractiveTutorial";
 import type { ViewName } from "@/types/quiz";
 
 const VIEW_COMPONENTS: Record<ViewName, React.ComponentType> = {
@@ -85,6 +86,7 @@ export default function QuizCraftApp() {
           );
         })}
       </div>
+      <InteractiveTutorial currentView={currentView} />
       <Toast />
     </>
   );

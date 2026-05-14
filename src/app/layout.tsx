@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "QuizCraft AI",
+  title: "QuizCraft Plus",
   description: "Practice quizzes, powered by AI. Paste your AI-generated quiz and start practicing with instant feedback.",
 };
 

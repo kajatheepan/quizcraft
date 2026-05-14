@@ -222,6 +222,7 @@ export default function PromptView() {
           {/* Copy button */}
           <button
             onClick={handleCopy}
+            data-tutorial="prompt-copy"
             className="mt-4 w-full py-[11px] px-5 bg-accent text-white rounded-lg
                        text-base font-medium shadow-card text-center
                        hover:opacity-90 active:scale-[0.99]
@@ -235,6 +236,7 @@ export default function PromptView() {
           <div className="text-center mt-3.5 text-sm">
             <button
               onClick={() => openProvider("chatgpt")}
+              data-tutorial="prompt-open-ai"
               className="text-secondary hover:text-primary transition-colors duration-[150ms]"
             >
               Open ChatGPT ↗
@@ -242,6 +244,7 @@ export default function PromptView() {
             <span className="text-secondary mx-2">·</span>
             <button
               onClick={() => openProvider("claude")}
+              data-tutorial="prompt-open-ai"
               className="text-secondary hover:text-primary transition-colors duration-[150ms]"
             >
               Open Claude ↗
@@ -307,6 +310,7 @@ export default function PromptView() {
             <br />
             <button
               onClick={() => navigate("input")}
+              data-tutorial="prompt-paste-quiz"
               className="text-accent hover:underline mt-0.5 inline-block"
             >
               Paste my quiz →

@@ -117,6 +117,15 @@ export function savePreferences(prefs: Partial<QuizSettings>): void {
   save({ ...data, preferences: { ...(data.preferences ?? {}), ...prefs } });
 }
 
+export function getTutorialSeen(): boolean {
+  return load().tutorialSeen === true;
+}
+
+export function saveTutorialSeen(seen: boolean): void {
+  const data = load();
+  save({ ...data, tutorialSeen: seen });
+}
+
 export function getAILinkSettings(): AILinkSettings {
   const stored = load().aiLinks ?? {};
   return {

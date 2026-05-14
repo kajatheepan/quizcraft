@@ -186,7 +186,7 @@ export default function ResultsView() {
     : questions;
 
   const handleShare = () => {
-    const text = `I scored ${percentage}% on a quiz! (${correct}/${total} correct) — QuizCraft AI`;
+    const text = `I scored ${percentage}% on a quiz! (${correct}/${total} correct) — QuizCraft Plus`;
     navigator.clipboard.writeText(text).then(() => {
       showToast("Copied to clipboard!");
     }).catch(() => showToast("Could not copy"));

@@ -175,6 +175,7 @@ export default function InputView() {
         <button
           type="button"
           onClick={() => setSettingsOpen((v) => !v)}
+          data-tutorial="input-settings-toggle"
           aria-expanded={settingsOpen}
           className="flex items-center justify-between w-full py-1 focus-visible:outline-none
                      focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -260,6 +261,7 @@ export default function InputView() {
         <button
           type="button"
           onClick={() => setAiSettingsOpen((v) => !v)}
+          data-tutorial="input-ai-settings-toggle"
           aria-expanded={aiSettingsOpen}
           className="flex items-center justify-between w-full py-1 focus-visible:outline-none
                      focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -338,6 +340,7 @@ export default function InputView() {
       {/* Start button */}
       <button
         onClick={handleStart}
+        data-tutorial="input-start-quiz"
         disabled={!isValid}
         className={`
           mt-7 w-full py-3.5 px-5 bg-accent text-white rounded-lg
@@ -354,6 +357,7 @@ export default function InputView() {
       <div className="text-center mt-3.5">
         <button
           onClick={handleLoadDemo}
+          data-tutorial="input-load-demo"
           className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms]"
         >
           Load a demo quiz

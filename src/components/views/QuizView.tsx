@@ -528,6 +528,7 @@ export default function QuizView() {
         <button
           key={`idx-${i}`}
           onClick={() => gotoQuestion(i)}
+          data-tutorial="quiz-nav-jump"
           className={getNavigatorButtonClass(i)}
           aria-label={`Jump to question ${i + 1}`}
           aria-current={i === quiz.current ? "step" : undefined}
@@ -726,6 +727,7 @@ export default function QuizView() {
                   <button
                     type="button"
                     onClick={() => openProvider("chatgpt")}
+                    data-tutorial="quiz-explain-ai"
                     className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
                     Explain in ChatGPT ↗
@@ -733,11 +735,15 @@ export default function QuizView() {
                   <button
                     type="button"
                     onClick={() => openProvider("claude")}
+                    data-tutorial="quiz-explain-ai"
                     className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
                     Explain in Claude ↗
                   </button>
                 </div>
+                <p className="text-xs text-secondary mt-2">
+                  These buttons open the chosen AI provider in a new tab to show an extended explanation. You can also copy the follow-up prompt and use it in your AI chat manually.
+                </p>
               </div>
             </div>
           )}
