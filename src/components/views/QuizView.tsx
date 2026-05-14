@@ -10,6 +10,7 @@ import { buildAIUrl } from "@/lib/aiLinks";
 import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
 import type { AILinkSettings, AIProvider } from "@/types/quiz";
+import {Copy, Settings} from "lucide-react";
 
 function buildExplainPrompt(question: Question): string {
   const userAnswer = question.skipped
@@ -703,10 +704,11 @@ export default function QuizView() {
                   <button
                     type="button"
                     onClick={() => setAiSettingsOpen((current) => !current)}
-                    className="rounded-md border border-border px-3 py-1.5 text-xs text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="h-8 w-8 rounded-md border border-border text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent flex items-center justify-center"
                     aria-expanded={aiSettingsOpen}
+                    aria-label={aiSettingsOpen ? "Hide AI settings" : "Change AI settings"}
                   >
-                    {aiSettingsOpen ? "Hide AI settings" : "Change AI settings"}
+                    <Settings className="w-5 h-5" />
                   </button>
                 </div>
 
@@ -778,10 +780,19 @@ export default function QuizView() {
                   >
                     Explain in Claude ↗
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(followUpPrompt);
+                      showToast("Prompt copied to clipboard");
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                  >
+               
+                    Copy prompt
+                    <Copy className="h-4 w-4" /> 
+                  </button>
                 </div>
-                <p className="text-xs text-secondary mt-2">
-                  These buttons open the chosen AI provider in a new tab to show an extended explanation. You can also copy the follow-up prompt and use it in your AI chat manually.
-                </p>
               </div>
             </div>
           )}
