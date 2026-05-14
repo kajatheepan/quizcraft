@@ -140,6 +140,7 @@ function ReviewItem({
                   <button
                     type="button"
                     onClick={() => onOpenProvider("chatgpt", followUpPrompt)}
+                    data-tutorial="results-explain-ai"
                     className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in ChatGPT ↗
@@ -147,6 +148,7 @@ function ReviewItem({
                   <button
                     type="button"
                     onClick={() => onOpenProvider("claude", followUpPrompt)}
+                    data-tutorial="results-explain-ai"
                     className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in Claude ↗
@@ -154,6 +156,7 @@ function ReviewItem({
                   <button
                     type="button"
                     onClick={() => onCopyPrompt(followUpPrompt)}
+                    data-tutorial="results-explain-ai"
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     <Copy className="h-3.5 w-3.5" aria-hidden="true" />

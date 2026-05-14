@@ -953,6 +953,7 @@ export default function QuizView() {
                       navigator.clipboard.writeText(followUpPrompt);
                       showToast("Prompt copied to clipboard");
                     }}
+                    data-tutorial="quiz-explain-ai"
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     <Copy className="h-4 w-4" aria-hidden="true" />
