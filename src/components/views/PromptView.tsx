@@ -8,6 +8,7 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { getAILinkSettings } from "@/lib/storage";
 import type { AIProvider } from "@/types/quiz";
+import { Copy } from "lucide-react";
 
 const ALL_TYPES = ["MCQ", "FILL", "TF"] as const;
 const TYPE_LABELS: Record<string, string> = { MCQ: "MCQ", FILL: "Fill in Blank", TF: "True/False" };
@@ -109,7 +110,7 @@ export default function PromptView() {
             <div className="relative pt-7">
               {/* Floating pill */}
               <div
-                className="absolute top-0 bg-border text-primary text-xs px-2 py-0.5 rounded-full
+                className="absolute top-0 border border-accent/30 bg-accent/10 text-primary text-xs px-2 py-0.5 rounded-full
                            whitespace-nowrap pointer-events-none -translate-x-1/2"
                 style={{ left: `calc(${sliderPct}% + ${8 - sliderPct * 0.16}px)` }}
               >
@@ -183,64 +184,62 @@ export default function PromptView() {
 
         {/* RIGHT: Preview */}
         <div>
-          <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-4">
-            Prompt Preview
-          </p>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary">
+              Prompt Preview
+            </p>
+            <button
+              onClick={handleCopy}
+              data-tutorial="prompt-copy"
+              className="inline-flex items-center gap-1.5 rounded-sm text-xs text-secondary transition-colors duration-[150ms] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {copyLabel}
+            </button>
+          </div>
 
           {/* Code preview */}
           <div
             aria-label="Generated prompt preview"
             aria-live="polite"
             className="bg-bg border border-border rounded-lg p-4 min-h-[400px] max-h-[500px]
-                       overflow-y-auto font-mono text-[12px] text-secondary leading-[1.7]
+                       overflow-y-auto font-mono text-[12px] text-primary/80 leading-[1.7]
                        whitespace-pre-wrap"
           >
             {prompt}
           </div>
 
-          <div className="mt-4 rounded-xl border border-border bg-surface/60 p-4 shadow-card">
-
+          <div className="mt-3 text-center text-sm">
             <button
-              onClick={handleCopy}
-              data-tutorial="prompt-copy"
-              className="w-full py-[11px] px-5 bg-accent text-white rounded-lg
-                         text-base font-medium shadow-card text-center
-                         hover:opacity-90 active:scale-[0.99]
-                         transition-all duration-[150ms] ease-out
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              onClick={() => openProvider("chatgpt")}
+              data-tutorial="prompt-open-ai"
+              className="text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
             >
-              {copyLabel}
+              Open ChatGPT ↗
             </button>
+            <span className="text-secondary mx-2">·</span>
+            <button
+              onClick={() => openProvider("claude")}
+              data-tutorial="prompt-open-ai"
+              className="text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            >
+              Open Claude ↗
+            </button>
+          </div>
+        </div>
 
-            <div className="mt-3 text-center text-sm">
-              <button
-                onClick={() => openProvider("chatgpt")}
-                data-tutorial="prompt-open-ai"
-                className="text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-              >
-                Open ChatGPT ↗
-              </button>
-              <span className="text-secondary mx-2">·</span>
-              <button
-                onClick={() => openProvider("claude")}
-                data-tutorial="prompt-open-ai"
-                className="text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-              >
-                Open Claude ↗
-              </button>
-            </div>
-            <div className="flex flex-col items-center mt-8 justify-around gap-4 mb-3">
-              <div>
-                <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary text-center">Copy the prompt, Generate quiz in AI, then paste the result back into QuizCraft.</p>
-              </div>
-              <button
-                onClick={() => navigate("input")}
-                data-tutorial="prompt-paste-quiz"
-                className="shrink-0 inline-flex items-center justify-center rounded-lg border border-accent/40 bg-accent/10 px-3.5 py-2 text-sm font-medium text-accent transition-all duration-[150ms] ease-out hover:border-accent hover:bg-accent/15 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                Paste my quiz →
-              </button>
-            </div>
+        <div className="md:col-span-2 rounded-lg border border-border bg-surface/60 p-4 shadow-card">
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary text-center">
+              Copy the prompt, generate quiz in AI, then paste the result back into QuizCraft.
+            </p>
+            <button
+              onClick={() => navigate("input")}
+              data-tutorial="prompt-paste-quiz"
+              className="text-sm font-medium text-accent transition-opacity duration-[150ms] hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            >
+              Paste my quiz →
+            </button>
           </div>
         </div>
       </div>

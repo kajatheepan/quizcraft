@@ -31,7 +31,7 @@ function applyTheme(mode: ThemeMode) {
   document.documentElement.style.colorScheme = theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute(
     "content",
-    theme === "dark" ? "#0f0f0f" : "#f8f5ef"
+    theme === "dark" ? "#131620" : "#f8f5ef"
   );
 }
 
@@ -110,7 +110,7 @@ export default function Navbar() {
                   "h-7 w-7 rounded-[5px] flex items-center justify-center transition-colors duration-[150ms]",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active
-                    ? "bg-border text-primary"
+                    ? "bg-accent/10 text-primary"
                     : "text-secondary hover:text-primary",
                 ].join(" ")}
                 aria-label={label}

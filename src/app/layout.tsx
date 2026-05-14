@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           meta.setAttribute("name", "theme-color");
           document.head.appendChild(meta);
         }
-        meta.setAttribute("content", theme === "dark" ? "#0f0f0f" : "#f8f5ef");
+        meta.setAttribute("content", theme === "dark" ? "#131620" : "#f8f5ef");
       } catch {}
     })();
   `;
@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#0f0f0f" />
+        <meta name="theme-color" content="#131620" />
         <Script id="quizcraft-theme-init" strategy="beforeInteractive">
           {themeScript}
         </Script>

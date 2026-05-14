@@ -19,7 +19,7 @@ const config: Config = {
         error:     "hsl(var(--color-error) / <alpha-value>)",
       },
       fontFamily: {
-        sans:  ["Inter", "sans-serif"],
+        sans:  ["Inter", "system-ui", "sans-serif"],
         mono:  ["JetBrains Mono", "Courier New", "monospace"],
       },
       fontSize: {

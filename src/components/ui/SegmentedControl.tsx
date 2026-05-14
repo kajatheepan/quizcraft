@@ -33,7 +33,7 @@ export default function SegmentedControl({
             flex-1 py-[7px] px-2.5 text-sm font-sans
             transition-colors duration-[150ms] ease-out text-center
             ${value === opt.value
-              ? "bg-border text-primary"
+              ? "bg-accent/10 text-primary"
               : "text-secondary hover:text-primary"
             }
           `}
