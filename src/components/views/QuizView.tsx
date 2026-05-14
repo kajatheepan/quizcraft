@@ -64,7 +64,7 @@ function MCQOptions({
         const showResult = isActuallyAnswered;
 
         let btnClass =
-          "w-full flex items-center gap-3 px-4 py-3 border border-border rounded-md mb-2 last:mb-0 " +
+          "w-full flex items-center gap-3 px-3 py-3 border border-border rounded-md mb-2 last:mb-0 sm:px-4 " +
           "text-left font-sans text-sm text-primary cursor-pointer " +
           "transition-all duration-[150ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
 
@@ -434,6 +434,12 @@ export default function QuizView() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setNavigatorOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (gearTimerRef.current) window.clearTimeout(gearTimerRef.current);
     };
@@ -703,7 +709,7 @@ export default function QuizView() {
   const confirmLabel = "Finish quiz";
 
   const renderNavigatorGrid = () => (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(2rem,1fr))] gap-2">
       {quiz.questions.map((_, i) => (
         <button
           key={`idx-${i}`}
@@ -778,8 +784,8 @@ export default function QuizView() {
         </div>
       </aside>
 
-      <div className="max-w-[760px] mx-auto px-4 pt-10 pb-20">
-        <div className="lg:hidden mb-5 rounded-lg border border-border bg-surface p-3">
+      <div className="max-w-[760px] mx-auto px-3 pt-6 pb-20 sm:px-4 sm:pt-10">
+        <div className="lg:hidden mb-4 rounded-lg border border-border bg-surface p-2.5 sm:mb-5 sm:p-3">
           <button
             type="button"
             onClick={() => setNavigatorOpen((current) => !current)}
@@ -809,11 +815,11 @@ export default function QuizView() {
               </svg>
             </span>
           </button>
-          {navigatorOpen && <div className="mt-3">{renderNavigatorGrid()}</div>}
+          {navigatorOpen && <div className="mt-3 max-h-40 overflow-y-auto pr-1">{renderNavigatorGrid()}</div>}
         </div>
 
         <section className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
-          <div className="border-b border-border px-6 py-4 sm:px-7">
+          <div className="border-b border-border px-4 py-3 sm:px-7 sm:py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-secondary">
                 Question {quiz.current + 1} of {quiz.questions.length}
@@ -831,8 +837,8 @@ export default function QuizView() {
             </div>
           </div>
 
-          <div key={question.id} className="px-6 py-7 sm:px-7 sm:py-8 animate-fade-in">
-            <p className="text-md font-medium text-primary leading-relaxed mb-7">{question.question}</p>
+          <div key={question.id} className="px-4 py-5 animate-fade-in sm:px-7 sm:py-8">
+            <p className="text-base font-medium text-primary leading-relaxed mb-5 sm:text-md sm:mb-7">{question.question}</p>
 
             {question.status === "skipped" && <p className="text-sm text-secondary mb-4">Skipped</p>}
 
@@ -852,7 +858,7 @@ export default function QuizView() {
           </div>
 
           {showExplanation && (
-            <div className="border-t border-border px-6 py-5 animate-fade-in sm:px-7" aria-live="polite">
+            <div className="border-t border-border px-4 py-5 animate-fade-in sm:px-7" aria-live="polite">
               <div>
                 <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">Explanation</p>
                 <p className="text-base text-primary leading-[1.7]">{question.explanation}</p>
@@ -930,12 +936,12 @@ export default function QuizView() {
                   </div>
                 )}
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={() => openProvider("chatgpt")}
                     data-tutorial="quiz-explain-ai"
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in ChatGPT ↗
                   </button>
@@ -943,7 +949,7 @@ export default function QuizView() {
                     type="button"
                     onClick={() => openProvider("claude")}
                     data-tutorial="quiz-explain-ai"
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in Claude ↗
                   </button>
@@ -954,7 +960,7 @@ export default function QuizView() {
                       showToast("Prompt copied to clipboard");
                     }}
                     data-tutorial="quiz-explain-ai"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     <Copy className="h-4 w-4" aria-hidden="true" />
                     Copy prompt
@@ -964,8 +970,8 @@ export default function QuizView() {
             </div>
           )}
 
-          <div className="border-t border-border px-6 py-4 sm:px-7">
-            <div className="flex flex-wrap items-center gap-3 animate-fade-in">
+          <div className="border-t border-border px-4 py-4 sm:px-7">
+            <div className="flex items-center justify-between gap-3 animate-fade-in">
               <button
                 type="button"
                 onClick={() => requestNavigation({ type: "goto", index: Math.max(0, quiz.current - 1) })}

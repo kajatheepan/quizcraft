@@ -90,7 +90,7 @@ export default function QuizCraftApp() {
           );
         })}
       </div>
-      <InteractiveTutorial currentView={currentView} />
+      <InteractiveTutorial />
       <Toast />
     </>
   );

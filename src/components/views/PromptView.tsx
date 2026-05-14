@@ -80,7 +80,7 @@ export default function PromptView() {
       </div>
 
       {/* Two columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10">
 
         {/* LEFT: Form */}
         <div>
@@ -185,7 +185,7 @@ export default function PromptView() {
 
         {/* RIGHT: Preview */}
         <div>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary">
               Prompt Preview
             </p>
@@ -204,14 +204,14 @@ export default function PromptView() {
           <div
             aria-label="Generated prompt preview"
             aria-live="polite"
-            className="bg-bg border border-border rounded-lg p-4 min-h-[400px] max-h-[500px]
+            className="bg-bg border border-border rounded-lg p-4 min-h-[260px] max-h-[340px] sm:min-h-[400px] sm:max-h-[500px]
                        overflow-y-auto font-mono text-[12px] text-primary/80 leading-[1.7]
                        whitespace-pre-wrap"
           >
             {prompt}
           </div>
 
-          <div className="mt-3 text-center text-sm">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-center text-sm">
             <button
               type="button"
               onClick={() => openProvider("chatgpt")}
@@ -220,7 +220,7 @@ export default function PromptView() {
             >
               Open ChatGPT ↗
             </button>
-            <span className="text-secondary mx-2">·</span>
+            <span className="hidden text-secondary sm:inline">·</span>
             <button
               type="button"
               onClick={() => openProvider("claude")}
@@ -232,8 +232,8 @@ export default function PromptView() {
           </div>
         </div>
 
-        <div className="md:col-span-2 rounded-lg border border-border bg-surface/60 p-4 shadow-card">
-          <div className="flex flex-col items-center gap-3">
+        <div className="rounded-lg border border-border bg-surface/60 p-4 shadow-card md:col-span-2 sm:p-5">
+          <div className="flex flex-col items-center gap-3 text-center">
             <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary text-center">
               Copy the prompt, generate quiz in AI, then paste the result back into QuizCraft.
             </p>

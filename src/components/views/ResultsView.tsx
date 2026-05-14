@@ -136,12 +136,12 @@ function ReviewItem({
                 </div>
               </div>
               {showExplain && (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={() => onOpenProvider("chatgpt", followUpPrompt)}
                     data-tutorial="results-explain-ai"
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in ChatGPT ↗
                   </button>
@@ -149,7 +149,7 @@ function ReviewItem({
                     type="button"
                     onClick={() => onOpenProvider("claude", followUpPrompt)}
                     data-tutorial="results-explain-ai"
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in Claude ↗
                   </button>
@@ -157,7 +157,7 @@ function ReviewItem({
                     type="button"
                     onClick={() => onCopyPrompt(followUpPrompt)}
                     data-tutorial="results-explain-ai"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                     Copy prompt
@@ -331,7 +331,7 @@ export default function ResultsView() {
       </div>
 
       {/* Filter */}
-      <div className="flex justify-end gap-3 mb-4 text-sm" role="group" aria-label="Review filters">
+      <div className="mb-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm sm:justify-end" role="group" aria-label="Review filters">
         {([
           { value: "all", label: "All" },
           { value: "review", label: "Review needed" },

@@ -71,13 +71,19 @@ export default function HomeView() {
         </p>
 
       {/* Heading */}
-      <h1 className="text-[2.5rem] font-semibold text-primary leading-[1.15] tracking-tight mb-5">
-        Your Quiz Lab<br />for Fast Revision
+      <h1 className="text-[2rem] font-semibold text-primary leading-[1.15] tracking-tight mb-5 sm:text-[2.5rem]">
+        Welcome to<br />QuizCraft Plus
       </h1>
 
       {/* Body */}
-      <p className="text-base text-secondary mb-9">
-        Practice the quizzes you generate using ChatGPT or Claude in an interactive way.
+      <p className="text-base text-secondary mb-4 leading-relaxed">
+        Already have questions from ChatGPT, Claude, or your notes?
+        <br className="hidden sm:block" />
+        Paste them here and start practicing instantly.
+      </p>
+
+      <p className="mb-9 text-sm font-medium text-primary/90">
+        Generate quiz using AI <span className="text-accent">→</span> Paste it here <span className="text-accent">→</span> Practice immediately
       </p>
 
       <button
@@ -86,7 +92,7 @@ export default function HomeView() {
         className="self-start text-xs text-secondary hover:text-primary transition-colors duration-[150ms]
                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm mb-6"
       >
-        How to use QuizCraft Plus
+        How it works
       </button>
 
       {latestSession && (
@@ -102,7 +108,7 @@ export default function HomeView() {
             {" · "}
             Last saved {formatSavedTime(latestSession.updatedAt)}
           </p>
-          <div className="flex gap-3 mt-4">
+          <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:gap-3">
             <button
               type="button"
               onClick={() => restoreSavedQuiz(latestSession.id)}
@@ -172,12 +178,12 @@ export default function HomeView() {
                   key={`unfinished-${session.id}`}
                   aria-label={`${session.title} unfinished quiz`}
                   className={`
-                    flex items-center justify-between py-3 border-border
+                    flex flex-col gap-2 py-3 border-border sm:flex-row sm:items-center sm:justify-between
                     border-b ${index === 0 ? "border-t" : ""} stagger-item
                   `}
                   style={{ animationDelay: `${index * 60}ms` }}
                 >
-                  <div className="min-w-0 max-w-[60%]">
+                  <div className="min-w-0 sm:max-w-[60%]">
                     <span className="text-sm font-medium text-primary truncate block">
                       {session.title}
                     </span>
@@ -186,7 +192,7 @@ export default function HomeView() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="text-xs text-secondary">{formatSavedTime(session.updatedAt)}</span>
                     <button
                       type="button"
@@ -215,15 +221,15 @@ export default function HomeView() {
                 key={`finished-${entry.id ?? `${entry.date}-${index}`}`}
                 aria-label={`${entry.topic} finished quiz`}
                 className={`
-                  flex items-center justify-between py-3 border-border
+                  flex flex-col gap-2 py-3 border-border sm:flex-row sm:items-center sm:justify-between
                   border-b ${index === 0 ? "border-t" : ""} stagger-item
                 `}
                 style={{ animationDelay: `${index * 60}ms` }}
               >
-                <span className="text-sm font-medium text-primary truncate max-w-[52%]">
+                <span className="text-sm font-medium text-primary truncate sm:max-w-[52%]">
                   {entry.topic}
                 </span>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="text-sm text-secondary">{entry.score}/{entry.total}</span>
                   <span className="text-sm font-medium text-success">{entry.percentage}%</span>
                   <span className="text-xs text-secondary">{entry.date}</span>

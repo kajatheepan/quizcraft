@@ -135,7 +135,7 @@ export default function InputView() {
       {/* Textarea section */}
       <div>
         {/* Label row */}
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <span className="text-sm text-secondary">Your quiz</span>
           {isValid && questionCount > 0 && (
             <span className="flex items-center gap-1.5 text-xs text-success" aria-live="polite">
@@ -151,7 +151,7 @@ export default function InputView() {
           onChange={(e) => handleTextChange(e.target.value)}
           aria-label="Paste your quiz text here"
           className={`
-            w-full min-h-[360px] bg-surface border rounded-lg
+            w-full min-h-[280px] bg-surface border rounded-lg sm:min-h-[360px]
             font-mono text-[13px] text-primary p-4 resize-y
             placeholder:text-secondary leading-relaxed
             transition-colors duration-[250ms] ease-out
@@ -290,7 +290,7 @@ export default function InputView() {
               return (
                 <div key={provider}>
                   <p className="text-sm text-primary mb-2">{label}</p>
-                  <div className="flex gap-2 mb-2">
+                  <div className="flex flex-wrap gap-2 mb-2">
                     <button
                       type="button"
                       onClick={() => updateProviderSettings(provider, { mode: "new" })}
