@@ -27,7 +27,7 @@ export default function Toast() {
         bg-surface border border-border rounded-lg px-5 py-2.5
         text-sm text-primary shadow-card
         transition-all duration-[150ms] ease-out
-        ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"}
+        ${visible ? "opacity-100 translate-y-0 animate-toast" : "opacity-0 translate-y-5"}
       `}
       style={{ transform: visible ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(20px)" }}
     >

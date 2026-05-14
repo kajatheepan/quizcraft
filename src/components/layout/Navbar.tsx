@@ -25,7 +25,7 @@ export default function Navbar() {
         {inQuiz && (
           <button
             onClick={() => navigate("home")}
-            className="h-8 w-8 rounded-md border border-border bg-surface flex items-center justify-center text-secondary transition-colors duration-[150ms] hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="h-8 w-8 rounded-md border border-border bg-surface flex items-center justify-center text-secondary transition-colors duration-[150ms] hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-anim"
             aria-label="Back to home"
           >
             <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">

@@ -393,6 +393,8 @@ export default function QuizView() {
   const [timerWarning, setTimerWarning] = useState(false);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+  const [gearSpin, setGearSpin] = useState(false);
+  const gearTimerRef = useRef<number | null>(null);
   const [aiSettings, setAiSettings] = useState<AILinkSettings>(() => getAILinkSettings());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef<number>(quiz.settings.timerSeconds);
@@ -401,6 +403,25 @@ export default function QuizView() {
 
   const updateDraftAnswer = useCallback((response: string | string[]) => {
     draftAnswerRef.current = response;
+  }, []);
+
+  const toggleAiSettings = () => {
+    setAiSettingsOpen((prev) => !prev);
+    // Trigger a transient spin animation on the gear for both open and close
+    if (gearTimerRef.current) {
+      window.clearTimeout(gearTimerRef.current);
+    }
+    setGearSpin(true);
+    gearTimerRef.current = window.setTimeout(() => {
+      setGearSpin(false);
+      gearTimerRef.current = null;
+    }, 420);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (gearTimerRef.current) window.clearTimeout(gearTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -555,7 +576,7 @@ export default function QuizView() {
   return (
     <div className="relative">
       <div className="fixed top-[52px] left-0 right-0 h-[3px] bg-border z-[99]" aria-hidden="true">
-        <div className="h-full bg-accent transition-[width] duration-[250ms] ease-out" style={{ width: `${progress}%` }} />
+        <div className="h-full bg-accent smooth-width" style={{ width: `${progress}%` }} />
       </div>
 
       <aside
@@ -572,14 +593,14 @@ export default function QuizView() {
           className={[
             "absolute top-4 -left-10 h-10 w-10 rounded-l-md border border-r-0 border-border",
             "bg-surface text-secondary shadow-card transition-colors duration-[150ms]",
-            "hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            "hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-anim",
           ].join(" ")}
           aria-label={navigatorOpen ? "Collapse question navigator" : "Expand question navigator"}
           aria-expanded={navigatorOpen}
         >
-          <svg viewBox="0 0 20 20" fill="none" className="mx-auto h-4 w-4" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" className={`mx-auto h-4 w-4 transform transition-transform duration-200 ${navigatorOpen ? "rotate-0" : "-rotate-180"}`} aria-hidden="true">
             <path
-              d={navigatorOpen ? "M8 5l5 5-5 5" : "M12 5l-5 5 5 5"}
+              d="M8 5l5 5-5 5"
               stroke="currentColor"
               strokeWidth="1.8"
               strokeLinecap="round"
@@ -658,7 +679,7 @@ export default function QuizView() {
                   ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
                 </span>
                 {quiz.settings.timer && timerDisplay && (
-                  <span className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error" : "text-secondary"}`} aria-label="Time remaining">
+                  <span className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error pulse-glow" : "text-secondary"}`} aria-label="Time remaining">
                     {timerDisplay}
                   </span>
                 )}
@@ -666,7 +687,7 @@ export default function QuizView() {
             </div>
           </div>
 
-          <div className="px-6 py-7 sm:px-7 sm:py-8">
+          <div key={question.id} className="px-6 py-7 sm:px-7 sm:py-8 animate-fade-in">
             <p className="text-md font-medium text-primary leading-relaxed mb-7">{question.question}</p>
 
             {question.skipped && <p className="text-sm text-secondary mb-4">Skipped</p>}
@@ -703,12 +724,12 @@ export default function QuizView() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setAiSettingsOpen((current) => !current)}
-                    className="h-8 w-8 rounded-md border border-border text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent flex items-center justify-center"
+                    onClick={toggleAiSettings}
+                    className="h-8 w-8 rounded-md border border-border text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent flex items-center justify-center btn-anim"
                     aria-expanded={aiSettingsOpen}
                     aria-label={aiSettingsOpen ? "Hide AI settings" : "Change AI settings"}
                   >
-                    <Settings className="w-5 h-5" />
+                    <Settings className={`w-5 h-5 ${gearSpin ? 'spin-gear' : ''}`} />
                   </button>
                 </div>
 
@@ -789,8 +810,8 @@ export default function QuizView() {
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
                
+                    <Copy className="h-4 w-4 mr-2" />
                     Copy prompt
-                    <Copy className="h-4 w-4" /> 
                   </button>
                 </div>
               </div>

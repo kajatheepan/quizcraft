@@ -169,8 +169,9 @@ export default function HomeView() {
                   aria-label={`${session.title} unfinished quiz`}
                   className={`
                     flex items-center justify-between py-3 border-border
-                    border-b ${index === 0 ? "border-t" : ""}
+                    border-b ${index === 0 ? "border-t" : ""} stagger-item
                   `}
+                  style={{ animationDelay: `${index * 60}ms` }}
                 >
                   <div className="min-w-0 max-w-[60%]">
                     <span className="text-sm font-medium text-primary truncate block">
@@ -203,14 +204,15 @@ export default function HomeView() {
             }
 
             const { entry } = item;
-            return (
+              return (
               <div
                 key={`finished-${entry.id ?? `${entry.date}-${index}`}`}
                 aria-label={`${entry.topic} finished quiz`}
                 className={`
                   flex items-center justify-between py-3 border-border
-                  border-b ${index === 0 ? "border-t" : ""}
+                  border-b ${index === 0 ? "border-t" : ""} stagger-item
                 `}
+                style={{ animationDelay: `${index * 60}ms` }}
               >
                 <span className="text-sm font-medium text-primary truncate max-w-[52%]">
                   {entry.topic}
