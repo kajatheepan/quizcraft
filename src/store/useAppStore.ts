@@ -270,10 +270,15 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "RETRY_QUIZ": {
       const { quiz } = state;
-      const prepared = prepareQuestions(quiz.original, quiz.settings);
+      const sourceQuestions = quiz.original.length > 0
+        ? quiz.original
+        : state.result?.questions ?? quiz.questions;
+      if (sourceQuestions.length === 0) return state;
+      const prepared = prepareQuestions(sourceQuestions, quiz.settings);
       const nextQuiz = withDerivedStats({
         ...quiz,
         questions: prepared,
+        original: sourceQuestions,
         current: 0,
         correct: 0,
         wrong: 0,
