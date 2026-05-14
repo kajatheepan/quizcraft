@@ -66,6 +66,7 @@ export default function PromptView() {
       {/* Top bar */}
       <div className="relative flex items-center justify-between mb-9">
         <button
+          type="button"
           onClick={() => navigateBack("home")}
           className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms]
                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -189,11 +190,12 @@ export default function PromptView() {
               Prompt Preview
             </p>
             <button
+              type="button"
               onClick={handleCopy}
               data-tutorial="prompt-copy"
-              className="inline-flex items-center gap-1.5 rounded-sm text-xs text-secondary transition-colors duration-[150ms] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-accent transition-colors duration-[150ms] hover:border-secondary hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <Copy className="h-3.5 w-3.5" />
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
               {copyLabel}
             </button>
           </div>
@@ -211,6 +213,7 @@ export default function PromptView() {
 
           <div className="mt-3 text-center text-sm">
             <button
+              type="button"
               onClick={() => openProvider("chatgpt")}
               data-tutorial="prompt-open-ai"
               className="text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -219,6 +222,7 @@ export default function PromptView() {
             </button>
             <span className="text-secondary mx-2">·</span>
             <button
+              type="button"
               onClick={() => openProvider("claude")}
               data-tutorial="prompt-open-ai"
               className="text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -234,6 +238,7 @@ export default function PromptView() {
               Copy the prompt, generate quiz in AI, then paste the result back into QuizCraft.
             </p>
             <button
+              type="button"
               onClick={() => navigate("input")}
               data-tutorial="prompt-paste-quiz"
               className="text-sm font-medium text-accent transition-opacity duration-[150ms] hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"

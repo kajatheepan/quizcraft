@@ -114,9 +114,10 @@ function ReviewItem({
           {question.explanation && (
             <>
               <button
+                type="button"
                 onClick={() => setShowExplain((v) => !v)}
                 className="block text-xs text-secondary hover:text-primary mt-2
-                           transition-colors duration-[150ms]"
+                           transition-colors duration-[150ms] rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 {showExplain ? "▴ Hide explanation" : "▾ Show explanation"}
               </button>
@@ -139,23 +140,23 @@ function ReviewItem({
                   <button
                     type="button"
                     onClick={() => onOpenProvider("chatgpt", followUpPrompt)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in ChatGPT ↗
                   </button>
                   <button
                     type="button"
                     onClick={() => onOpenProvider("claude", followUpPrompt)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in Claude ↗
                   </button>
                   <button
                     type="button"
                     onClick={() => onCopyPrompt(followUpPrompt)}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
-                    <Copy className="h-3.5 w-3.5" />
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                     Copy prompt
                   </button>
                 </div>
@@ -305,6 +306,7 @@ export default function ResultsView() {
             <span key={item.label} className="flex items-center">
               {i > 0 && <span className="text-secondary mx-2.5">·</span>}
               <button
+                type="button"
                 onClick={item.action}
                 className="text-primary hover:text-secondary transition-colors duration-[150ms]
                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -326,7 +328,7 @@ export default function ResultsView() {
       </div>
 
       {/* Filter */}
-      <div className="flex justify-end gap-3 mb-4 text-sm">
+      <div className="flex justify-end gap-3 mb-4 text-sm" role="group" aria-label="Review filters">
         {([
           { value: "all", label: "All" },
           { value: "review", label: "Review needed" },
@@ -336,7 +338,9 @@ export default function ResultsView() {
         ] as const).map((item) => (
           <button
             key={item.value}
+            type="button"
             onClick={() => setFilter(item.value)}
+            aria-pressed={filter === item.value}
             className={`transition-colors duration-[150ms] focus-visible:outline-none
                         focus-visible:ring-2 focus-visible:ring-accent rounded-sm
                         ${filter === item.value ? "text-primary" : "text-secondary hover:text-primary"}`}

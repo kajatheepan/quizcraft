@@ -75,6 +75,7 @@ export default function Navbar() {
       <div className="flex items-center gap-3">
         {inQuiz && (
           <button
+            type="button"
             onClick={() => navigate("home")}
             className="h-8 w-8 rounded-md border border-border bg-surface flex items-center justify-center text-secondary transition-colors duration-[150ms] hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-anim"
             aria-label="Back to home"
@@ -86,8 +87,8 @@ export default function Navbar() {
         )}
         {/* Logo */}
         <button
+          type="button"
           onClick={handleLogo}
-          onKeyDown={(e) => e.key === "Enter" && handleLogo()}
           className="text-[15px] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-sm"
           aria-label="QuizCraft Plus — go to home"
         >
@@ -98,7 +99,7 @@ export default function Navbar() {
 
       {/* Right */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center rounded-md border border-border bg-surface p-0.5" aria-label="Theme selector">
+        <div role="group" className="flex items-center rounded-md border border-border bg-surface p-0.5" aria-label="Theme selector">
           {THEME_OPTIONS.map(({ mode, label, Icon }) => {
             const active = themeMode === mode;
             return (
@@ -125,6 +126,7 @@ export default function Navbar() {
 
         {/* Get AI Prompt */}
         <button
+          type="button"
           onClick={() => navigate("prompt")}
           data-tutorial="nav-prompt"
           className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms] hidden sm:block"
@@ -133,6 +135,7 @@ export default function Navbar() {
           <span>Get AI Prompt</span>
         </button>
         <button
+          type="button"
           onClick={() => navigate("prompt")}
           data-tutorial="nav-prompt"
           className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms] sm:hidden"

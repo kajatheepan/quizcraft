@@ -19,9 +19,10 @@ export default function Toggle({ checked, onChange, label, id }: ToggleProps) {
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
+        aria-label={label}
         className="sr-only peer"
       />
-      <span className="absolute inset-0 bg-border rounded-full transition-colors duration-[150ms] peer-checked:bg-accent" />
+      <span className="absolute inset-0 bg-border rounded-full transition-colors duration-[150ms] peer-checked:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg" />
       <span
         className={`
           absolute top-[3px] left-[3px] w-3.5 h-3.5 bg-primary rounded-full

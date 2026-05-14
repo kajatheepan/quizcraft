@@ -96,6 +96,7 @@ function MCQOptions({
         return (
           <button
             key={letter}
+            type="button"
             disabled={answered}
             onClick={() => !answered && onAnswer(letter)}
             aria-label={`Option ${letter}: ${text}`}
@@ -174,6 +175,7 @@ function FillInput({
       {!answered && (
         <div className="flex justify-end mt-2.5">
           <button
+            type="button"
             onClick={submit}
             className="border border-border text-primary text-sm px-3.5 py-1.5 rounded-md
                        hover:border-secondary transition-colors duration-[150ms]
@@ -309,6 +311,7 @@ function DragDropFill({
       {!answered && (
         <div className="flex justify-end">
           <button
+            type="button"
             onClick={handleSubmit}
             className="border border-border text-primary text-sm px-3.5 py-1.5 rounded-md
                        hover:border-secondary transition-colors duration-[150ms]
@@ -377,8 +380,10 @@ function TFOptions({
       {["TRUE", "FALSE"].map((val) => (
         <button
           key={val}
+          type="button"
           disabled={answered}
           onClick={() => !answered && onAnswer(val)}
+          aria-label={`Answer ${val === "TRUE" ? "True" : "False"}`}
           className={getBtnClass(val)}
         >
           {val === "TRUE" ? "True" : "False"}
@@ -401,6 +406,9 @@ export default function QuizView() {
   const [gearSpin, setGearSpin] = useState(false);
   const [pendingConfirmAction, setPendingConfirmAction] = useState<ConfirmAction | null>(null);
   const gearTimerRef = useRef<number | null>(null);
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  const confirmCancelRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [aiSettings, setAiSettings] = useState<AILinkSettings>(() => getAILinkSettings());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef<number>(quiz.settings.timerSeconds);
@@ -528,6 +536,58 @@ export default function QuizView() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
+  useEffect(() => {
+    if (!pendingConfirmAction) return;
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const focusTimer = window.setTimeout(() => {
+      confirmCancelRef.current?.focus();
+    }, 0);
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setPendingConfirmAction(null);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const dialog = confirmDialogRef.current;
+      if (!dialog) return;
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => !element.hasAttribute("disabled"));
+
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleDialogKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleDialogKeyDown);
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    };
+  }, [pendingConfirmAction]);
+
   if (!question) return null;
 
   const handleAnswerWrapped = (response: any) => {
@@ -647,6 +707,7 @@ export default function QuizView() {
       {quiz.questions.map((_, i) => (
         <button
           key={`idx-${i}`}
+          type="button"
           onClick={() => requestNavigation({ type: "goto", index: i })}
           data-tutorial="quiz-nav-jump"
           className={getNavigatorButtonClass(i)}
@@ -812,7 +873,7 @@ export default function QuizView() {
                     aria-expanded={aiSettingsOpen}
                     aria-label={aiSettingsOpen ? "Hide AI settings" : "Change AI settings"}
                   >
-                    <Settings className={`w-5 h-5 ${gearSpin ? 'spin-gear' : ''}`} />
+                    <Settings className={`w-5 h-5 ${gearSpin ? 'spin-gear' : ''}`} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -833,7 +894,8 @@ export default function QuizView() {
                                 config.mode === "new"
                                   ? "border-accent text-primary bg-accent/10"
                                   : "border-border text-secondary hover:text-primary"
-                              }`}
+                              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                              aria-pressed={config.mode === "new"}
                             >
                               New chat
                             </button>
@@ -844,7 +906,8 @@ export default function QuizView() {
                                 config.mode === "continue"
                                   ? "border-accent text-primary bg-accent/10"
                                   : "border-border text-secondary hover:text-primary"
-                              }`}
+                              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                              aria-pressed={config.mode === "continue"}
                             >
                               Continue chat
                             </button>
@@ -872,7 +935,7 @@ export default function QuizView() {
                     type="button"
                     onClick={() => openProvider("chatgpt")}
                     data-tutorial="quiz-explain-ai"
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in ChatGPT ↗
                   </button>
@@ -880,7 +943,7 @@ export default function QuizView() {
                     type="button"
                     onClick={() => openProvider("claude")}
                     data-tutorial="quiz-explain-ai"
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     Explain in Claude ↗
                   </button>
@@ -890,9 +953,9 @@ export default function QuizView() {
                       navigator.clipboard.writeText(followUpPrompt);
                       showToast("Prompt copied to clipboard");
                     }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-4 w-4" aria-hidden="true" />
                     Copy prompt
                   </button>
                 </div>
@@ -903,6 +966,7 @@ export default function QuizView() {
           <div className="border-t border-border px-6 py-4 sm:px-7">
             <div className="flex flex-wrap items-center gap-3 animate-fade-in">
               <button
+                type="button"
                 onClick={() => requestNavigation({ type: "goto", index: Math.max(0, quiz.current - 1) })}
                 disabled={quiz.current === 0}
                 className="text-secondary text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-40"
@@ -911,6 +975,7 @@ export default function QuizView() {
               </button>
 
               <button
+                type="button"
                 onClick={handleForward}
                 className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
               >
@@ -927,16 +992,18 @@ export default function QuizView() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="skip-confirm-title"
+          aria-describedby="skip-confirm-body"
         >
-          <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-card">
+          <div ref={confirmDialogRef} className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-card">
             <h2 id="skip-confirm-title" className="text-base font-semibold text-primary">
               {confirmTitle}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-secondary">
+            <p id="skip-confirm-body" className="mt-2 text-sm leading-relaxed text-secondary">
               {confirmBody}
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button
+                ref={confirmCancelRef}
                 type="button"
                 onClick={() => setPendingConfirmAction(null)}
                 className="rounded-md border border-border px-3.5 py-2 text-sm text-secondary transition-colors duration-[150ms] hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"

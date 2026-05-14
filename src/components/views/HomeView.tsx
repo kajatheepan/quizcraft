@@ -104,6 +104,7 @@ export default function HomeView() {
           </p>
           <div className="flex gap-3 mt-4">
             <button
+              type="button"
               onClick={() => restoreSavedQuiz(latestSession.id)}
               className="flex-1 py-2.5 px-4 bg-accent text-white rounded-md text-sm font-medium
                          hover:opacity-90 transition-opacity duration-[150ms]
@@ -112,6 +113,7 @@ export default function HomeView() {
               Continue quiz
             </button>
             <button
+              type="button"
               onClick={() => handleDiscardSavedQuiz(latestSession.id)}
               className="py-2.5 px-4 border border-border rounded-md text-sm text-secondary
                          hover:text-primary hover:border-secondary transition-colors duration-[150ms]
@@ -125,6 +127,7 @@ export default function HomeView() {
 
       {/* Primary CTA */}
       <button
+        type="button"
         onClick={() => navigate("input")}
         data-tutorial="home-paste-quiz"
         className="w-full py-3.5 px-5 bg-accent text-white rounded-lg
@@ -147,8 +150,9 @@ export default function HomeView() {
       {/* Generate link */}
       <div className="text-center mb-12">
         <button
+          type="button"
           onClick={() => navigate("prompt")}
-          className="text-secondary text-base hover:text-primary transition-colors duration-[150ms]"
+          className="rounded-sm text-secondary text-base hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Don&apos;t have a quiz yet? Generate one with AI →
         </button>
@@ -185,6 +189,7 @@ export default function HomeView() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-secondary">{formatSavedTime(session.updatedAt)}</span>
                     <button
+                      type="button"
                       onClick={() => restoreSavedQuiz(session.id)}
                       className="text-xs text-accent hover:opacity-80 transition-opacity duration-[150ms]
                                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -192,6 +197,7 @@ export default function HomeView() {
                       Continue
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDiscardSavedQuiz(session.id)}
                       className="text-xs text-secondary hover:text-primary transition-colors duration-[150ms]
                                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -222,6 +228,7 @@ export default function HomeView() {
                   <span className="text-sm font-medium text-success">{entry.percentage}%</span>
                   <span className="text-xs text-secondary">{entry.date}</span>
                   <button
+                    type="button"
                     onClick={() => handleReviewFinishedQuiz(entry)}
                     className="text-xs text-accent hover:opacity-80 transition-opacity duration-[150ms]
                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"

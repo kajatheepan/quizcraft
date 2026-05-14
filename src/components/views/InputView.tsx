@@ -119,6 +119,7 @@ export default function InputView() {
       {/* Top bar */}
       <div className="relative flex items-center justify-between mb-9">
         <button
+          type="button"
           onClick={() => navigateBack("home")}
           className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms]
                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -297,7 +298,8 @@ export default function InputView() {
                         config.mode === "new"
                           ? "border-accent text-primary bg-accent/10"
                           : "border-border text-secondary hover:text-primary"
-                      }`}
+                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                      aria-pressed={config.mode === "new"}
                     >
                       New chat
                     </button>
@@ -308,7 +310,8 @@ export default function InputView() {
                         config.mode === "continue"
                           ? "border-accent text-primary bg-accent/10"
                           : "border-border text-secondary hover:text-primary"
-                      }`}
+                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                      aria-pressed={config.mode === "continue"}
                     >
                       Continue chat
                     </button>
@@ -339,6 +342,7 @@ export default function InputView() {
 
       {/* Start button */}
       <button
+        type="button"
         onClick={handleStart}
         data-tutorial="input-start-quiz"
         disabled={!isValid}
@@ -356,9 +360,10 @@ export default function InputView() {
       {/* Demo link */}
       <div className="text-center mt-3.5">
         <button
+          type="button"
           onClick={handleLoadDemo}
           data-tutorial="input-load-demo"
-          className="text-secondary text-sm hover:text-primary transition-colors duration-[150ms]"
+          className="rounded-sm text-secondary text-sm hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           Load a demo quiz
         </button>

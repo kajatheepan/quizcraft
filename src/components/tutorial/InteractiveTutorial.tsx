@@ -4,7 +4,7 @@
 // `data-tutorial` selectors and advances when the user completes actions.
 // Designed to be non-invasive and optional.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getTutorialSeen, saveTutorialSeen } from "@/lib/storage";
 import type { ViewName } from "@/types/quiz";
 
@@ -142,6 +142,9 @@ export default function InteractiveTutorial({ currentView }: { currentView: View
   const [open, setOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const skipButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const step = STEPS[stepIndex];
 
@@ -244,6 +247,58 @@ export default function InteractiveTutorial({ currentView }: { currentView: View
   }, [open, stepIndex, step]);
 
   useEffect(() => {
+    if (!open) return;
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const focusTimer = window.setTimeout(() => {
+      skipButtonRef.current?.focus();
+    }, 0);
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeTutorial(false);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => !element.hasAttribute("disabled"));
+
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleDialogKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleDialogKeyDown);
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open || !step || step.action !== "click") return;
 
     const onClick = (event: MouseEvent) => {
@@ -265,6 +320,8 @@ export default function InteractiveTutorial({ currentView }: { currentView: View
   if (!open || !step) return null;
 
   const targetMissing = step.action === "click" && (!targetRect || currentView !== step.view);
+  const titleId = `tutorial-title-${step.id}`;
+  const bodyId = `tutorial-body-${step.id}`;
 
   return (
     <div className="fixed inset-0 z-[130] pointer-events-none">
@@ -281,14 +338,19 @@ export default function InteractiveTutorial({ currentView }: { currentView: View
       )}
 
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
         className="fixed pointer-events-auto bg-surface border border-border rounded-xl shadow-card p-4"
         style={cardStyle}
       >
         <p className="text-2xs font-medium tracking-[0.1em] uppercase text-accent mb-1">
           Interactive Tutorial
         </p>
-        <h3 className="text-base font-semibold text-primary mb-2">{step.title}</h3>
-        <p className="text-sm text-secondary leading-relaxed whitespace-pre-line mb-4">{step.body}</p>
+        <h3 id={titleId} className="text-base font-semibold text-primary mb-2">{step.title}</h3>
+        <p id={bodyId} className="text-sm text-secondary leading-relaxed whitespace-pre-line mb-4">{step.body}</p>
 
         {targetMissing && step.action === "click" && (
           <p className="text-xs text-secondary mb-4">
@@ -298,9 +360,10 @@ export default function InteractiveTutorial({ currentView }: { currentView: View
 
         <div className="flex items-center justify-between gap-3">
           <button
+            ref={skipButtonRef}
             type="button"
             onClick={() => closeTutorial(true)}
-            className="text-xs text-secondary hover:text-primary transition-colors duration-[150ms]"
+            className="rounded-sm text-xs text-secondary hover:text-primary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             Skip tutorial
           </button>
@@ -310,7 +373,7 @@ export default function InteractiveTutorial({ currentView }: { currentView: View
               type="button"
               onClick={prevStep}
               disabled={stepIndex === 0}
-              className="px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary transition-colors duration-[150ms] disabled:opacity-40"
+              className="px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary transition-colors duration-[150ms] disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               Back
             </button>
@@ -318,7 +381,7 @@ export default function InteractiveTutorial({ currentView }: { currentView: View
               <button
                 type="button"
                 onClick={nextStep}
-                className="px-4 py-1.5 rounded-md bg-accent text-white text-xs font-medium hover:opacity-90 transition-opacity duration-[150ms]"
+                className="px-4 py-1.5 rounded-md bg-accent text-white text-xs font-medium hover:opacity-90 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
               >
                 Continue
               </button>
