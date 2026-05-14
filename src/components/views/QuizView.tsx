@@ -385,7 +385,7 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast, navigateBack } = useAppStore();
+  const { state, answerQuestion, nextQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
@@ -559,29 +559,6 @@ export default function QuizView() {
 
       <aside
         className={[
-          "hidden lg:block fixed top-[52px] left-0 z-40 h-[calc(100vh-52px)] w-[280px]",
-          "bg-surface border-r border-border shadow-card transition-transform duration-[250ms] ease-out",
-        ].join(" ")}
-        aria-hidden="true"
-      >
-        <div className="h-full px-4 pt-9 pb-8">
-          <button
-            type="button"
-            onClick={() => navigateBack()}
-            aria-label="Back"
-            className={[
-              "absolute top-4 left-4 h-10 w-10 rounded-full flex items-center justify-center",
-              "bg-bg border border-border text-primary hover:bg-border transition-colors duration-[150ms]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-            ].join(" ")}
-          >
-            ←
-          </button>
-        </div>
-      </aside>
-
-      <aside
-        className={[
           "hidden lg:block fixed top-[52px] right-0 z-40 h-[calc(100vh-52px)] w-[280px]",
           "bg-surface border-l border-border shadow-card transition-transform duration-[250ms] ease-out",
           navigatorOpen ? "translate-x-0" : "translate-x-full",
@@ -592,14 +569,22 @@ export default function QuizView() {
           type="button"
           onClick={() => setNavigatorOpen((current) => !current)}
           className={[
-            "absolute top-4 -left-8 h-11 w-11 rounded-full bg-accent text-bg text-2xl leading-none",
-            "border-2 border-bg shadow-card transition-colors duration-[150ms]",
-            "hover:bg-[#6B5FF0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            "absolute top-4 -left-10 h-10 w-10 rounded-l-md border border-r-0 border-border",
+            "bg-surface text-secondary shadow-card transition-colors duration-[150ms]",
+            "hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
           ].join(" ")}
           aria-label={navigatorOpen ? "Collapse question navigator" : "Expand question navigator"}
           aria-expanded={navigatorOpen}
         >
-          {navigatorOpen ? "×" : "‹"}
+          <svg viewBox="0 0 20 20" fill="none" className="mx-auto h-4 w-4" aria-hidden="true">
+            <path
+              d={navigatorOpen ? "M8 5l5 5-5 5" : "M12 5l-5 5 5 5"}
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
 
         <div className="h-full overflow-y-auto px-4 pt-9 pb-8">
@@ -629,13 +614,31 @@ export default function QuizView() {
           <button
             type="button"
             onClick={() => setNavigatorOpen((current) => !current)}
-            className="flex w-full items-center justify-between text-sm text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            className="flex w-full items-center justify-between rounded-md border border-border bg-bg px-3 py-2 text-sm text-primary transition-colors duration-[150ms] hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-expanded={navigatorOpen}
           >
-            <span>
-              Questions {quiz.current + 1} / {quiz.questions.length}
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 text-secondary" aria-hidden="true">
+                <path d="M4 5h12M4 10h12M4 15h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+              <span>
+                Questions {quiz.current + 1} / {quiz.questions.length}
+              </span>
             </span>
-            <span className="text-secondary">{navigatorOpen ? "Hide" : "Show"}</span>
+            <span className="inline-flex items-center gap-2">
+              <span className="rounded-full border border-border px-2 py-0.5 text-2xs uppercase tracking-[0.08em] text-secondary">
+                {navigatorOpen ? "Open" : "Closed"}
+              </span>
+              <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 text-secondary" aria-hidden="true">
+                <path
+                  d={navigatorOpen ? "M6 12l4-4 4 4" : "M6 8l4 4 4-4"}
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
           </button>
           {navigatorOpen && <div className="mt-3">{renderNavigatorGrid()}</div>}
         </div>
