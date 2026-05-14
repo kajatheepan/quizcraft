@@ -9,12 +9,19 @@ import { getScoreMessage } from "@/lib/quizEngine";
 import type { Question } from "@/types/quiz";
 import type { AIProvider } from "@/types/quiz";
 
+function getQuestionStatus(question: Question) {
+  if (question.status) return question.status;
+  if (question.isCorrect !== null) return "answered";
+  if (question.skipped) return "skipped";
+  return "unseen";
+}
+
 function formatAnswer(value: string): string {
   return value.trim();
 }
 
 function buildExplainPrompt(question: Question): string {
-  const userAnswer = question.skipped
+  const userAnswer = getQuestionStatus(question) === "skipped"
     ? "(skipped)"
     : !question.userAnswer
       ? "(skipped)"
@@ -52,7 +59,7 @@ function ReviewItem({
   onOpenProvider: (provider: AIProvider, prompt: string) => void;
 }) {
   const [showExplain, setShowExplain] = useState(false);
-  const isSkipped = question.skipped === true;
+  const isSkipped = getQuestionStatus(question) === "skipped";
   const isCorrect = question.isCorrect === true;
   const followUpPrompt = buildExplainPrompt(question);
 
@@ -95,7 +102,7 @@ function ReviewItem({
           </p>
           <div className="mt-1.5 text-xs text-secondary leading-relaxed">
             <div>{isSkipped ? "Skipped" : `Your answer: ${getUserAnswerDisplay()}`}</div>
-            {!isCorrect && !isSkipped && (
+            {!isCorrect && (
               <div className="text-success mt-0.5">Correct: {getCorrectDisplay()}</div>
             )}
           </div>
@@ -182,7 +189,7 @@ export default function ResultsView() {
   const message = getScoreMessage(percentage);
 
   const displayed = filter === "wrong"
-    ? questions.filter((q) => !q.isCorrect)
+    ? questions.filter((q) => getQuestionStatus(q) === "answered" && q.isCorrect === false)
     : questions;
 
   const handleShare = () => {

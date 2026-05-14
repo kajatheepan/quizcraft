@@ -4,6 +4,7 @@
 
 export type QuestionType = "MCQ" | "FILL" | "TF";
 export type FillMode = "typed" | "dragdrop";
+export type QuestionStatus = "unseen" | "answered" | "skipped";
 
 export interface DragBlank {
   id: string;
@@ -25,6 +26,7 @@ export interface Question {
   explanation: string;
   userAnswer: string | string[] | null;
   isCorrect: boolean | null;
+  status: QuestionStatus;
   skipped?: boolean;
   remainingSeconds?: number;
 }

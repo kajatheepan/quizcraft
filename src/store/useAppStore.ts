@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useReducer } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
-import { checkAnswer, prepareQuestions } from "@/lib/quizEngine";
+import { buildResultData, checkAnswer, getQuestionStats, prepareQuestions } from "@/lib/quizEngine";
 import {
   clearActiveSession,
   getActiveSession,
@@ -22,7 +22,6 @@ import type {
   ResultData,
   ViewName,
 } from "@/types/quiz";
-import { buildResultData } from "@/lib/quizEngine";
 
 // ── STATE SHAPE ───────────────────────────────────────────────────────────────
 
@@ -82,6 +81,52 @@ type Action =
 
 // ── REDUCER ───────────────────────────────────────────────────────────────────
 
+function normalizeQuestionState(question: Question): Question {
+  if (question.status) return question;
+  if (question.isCorrect !== null) return { ...question, status: "answered", skipped: false };
+  if (question.skipped) return { ...question, status: "skipped" };
+  return { ...question, status: "unseen", skipped: false };
+}
+
+function withDerivedStats(quiz: QuizState): QuizState {
+  const { correct, wrong, skipped } = getQuestionStats(quiz.questions);
+  const currentQuestion = quiz.questions[quiz.current];
+  return {
+    ...quiz,
+    correct,
+    wrong,
+    skipped,
+    answered: currentQuestion?.status === "answered",
+  };
+}
+
+function markQuestionSkipped(question: Question): Question {
+  if (question.status === "answered") return question;
+  return {
+    ...question,
+    userAnswer: null,
+    isCorrect: null,
+    status: "skipped",
+    skipped: true,
+  };
+}
+
+function markCurrentSkippedIfNeeded(quiz: QuizState): QuizState {
+  const currentQuestion = quiz.questions[quiz.current];
+  if (!currentQuestion || currentQuestion.status === "answered") return withDerivedStats(quiz);
+
+  const questions = [...quiz.questions];
+  questions[quiz.current] = markQuestionSkipped(currentQuestion);
+  return withDerivedStats({ ...quiz, questions });
+}
+
+function finalizeQuizQuestions(quiz: QuizState): QuizState {
+  const questions = quiz.questions.map((question) =>
+    question.status === "answered" ? question : markQuestionSkipped(question)
+  );
+  return withDerivedStats({ ...quiz, questions });
+}
+
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "NAVIGATE": {
@@ -103,21 +148,22 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "START_QUIZ": {
       const prepared = prepareQuestions(action.questions, action.settings);
+      const quiz = withDerivedStats({
+        questions: prepared,
+        original: action.questions,
+        current: 0,
+        correct: 0,
+        wrong: 0,
+        skipped: 0,
+        startTime: Date.now(),
+        settings: action.settings,
+        answered: false,
+      });
       return {
         ...state,
         view: "quiz",
         viewHistory: [...state.viewHistory, state.view],
-        quiz: {
-          questions: prepared,
-          original: action.questions,
-          current: 0,
-          correct: 0,
-          wrong: 0,
-          skipped: 0,
-          startTime: Date.now(),
-          settings: action.settings,
-          answered: false,
-        },
+        quiz,
         result: null,
       };
     }
@@ -125,153 +171,121 @@ function reducer(state: AppState, action: Action): AppState {
     case "ANSWER_QUESTION": {
       const { quiz } = state;
       const q = { ...quiz.questions[quiz.current] };
-      // Only block if the question is actually answered (has both userAnswer and isCorrect set)
-      // Allow re-answering skipped questions (both userAnswer and isCorrect are null)
-      if (q.userAnswer !== null && q.isCorrect !== null) return state;
+      if (q.status === "answered") return state;
       const isCorrect = checkAnswer(q, action.response);
       q.userAnswer = action.response;
       q.isCorrect = isCorrect;
+      q.status = "answered";
+      q.skipped = false;
       const questions = [...quiz.questions];
       questions[quiz.current] = q;
       return {
         ...state,
-        quiz: {
-          ...quiz,
-          questions,
-          answered: true,
-          correct: isCorrect ? quiz.correct + 1 : quiz.correct,
-          wrong: !isCorrect ? quiz.wrong + 1 : quiz.wrong,
-        },
+        quiz: withDerivedStats({ ...quiz, questions }),
       };
     }
 
     case "SKIP_QUESTION": {
       const { quiz } = state;
-      const currentQuestion = quiz.questions[quiz.current];
-      // Only block if the question is actually answered (has both userAnswer and isCorrect set)
-      if (currentQuestion.userAnswer !== null && currentQuestion.isCorrect !== null) return state;
-      const skippedQuestion = {
-        ...currentQuestion,
-        userAnswer: null,
-        isCorrect: null,
-        skipped: true,
-      };
-      const questions = [...quiz.questions];
-      questions[quiz.current] = skippedQuestion;
+      const nextQuiz = markCurrentSkippedIfNeeded(quiz);
 
-      const nextSkippedCount = quiz.skipped + 1;
-
-      if (quiz.current < quiz.questions.length - 1) {
+      if (nextQuiz.current < nextQuiz.questions.length - 1) {
         return {
           ...state,
-          quiz: {
-            ...quiz,
-            questions,
-            current: quiz.current + 1,
-            answered: false,
-            skipped: nextSkippedCount,
-          },
+          quiz: withDerivedStats({ ...nextQuiz, current: nextQuiz.current + 1 }),
         };
       }
 
-      const result = buildResultData(questions, quiz.correct, quiz.wrong, nextSkippedCount);
+      const finishedQuiz = finalizeQuizQuestions(nextQuiz);
+      const result = buildResultData(finishedQuiz.questions);
 
       return {
         ...state,
         view: "results",
-        quiz: {
-          ...quiz,
-          questions,
-          skipped: nextSkippedCount,
-        },
+        quiz: finishedQuiz,
         result,
       };
     }
 
     case "NEXT_QUESTION": {
-      const { quiz } = state;
-      if (quiz.current < quiz.questions.length - 1) {
+      const nextQuiz = markCurrentSkippedIfNeeded(state.quiz);
+      if (nextQuiz.current < nextQuiz.questions.length - 1) {
         return {
           ...state,
-          quiz: { ...quiz, current: quiz.current + 1, answered: false },
+          quiz: withDerivedStats({ ...nextQuiz, current: nextQuiz.current + 1 }),
         };
       }
-      // Last question — finish
-      const result = buildResultData(
-        quiz.questions,
-        quiz.correct,
-        quiz.wrong,
-        quiz.skipped
-      );
-      return { ...state, view: "results", result };
+      const finishedQuiz = finalizeQuizQuestions(nextQuiz);
+      const result = buildResultData(finishedQuiz.questions);
+      return { ...state, view: "results", quiz: finishedQuiz, result };
     }
 
     case "GOTO_QUESTION": {
-      const { quiz } = state;
-      const idx = Math.max(0, Math.min(action.index, quiz.questions.length - 1));
-      const target = quiz.questions[idx];
-      const answered = Boolean(target?.skipped || target?.userAnswer !== null || target?.isCorrect !== null);
-      return { ...state, quiz: { ...quiz, current: idx, answered } };
+      const idx = Math.max(0, Math.min(action.index, state.quiz.questions.length - 1));
+      if (idx === state.quiz.current) return state;
+      const quiz = markCurrentSkippedIfNeeded(state.quiz);
+      return { ...state, quiz: withDerivedStats({ ...quiz, current: idx }) };
     }
 
     case "TIMEOUT_QUESTION": {
       const { quiz } = state;
       const currentQuestion = quiz.questions[quiz.current];
-      if (currentQuestion.isCorrect !== null) return state;
+      if (currentQuestion.status === "answered") return state;
 
       const response = action.response ?? null;
       const isCorrect = response !== null ? checkAnswer(currentQuestion, response) : false;
+      const nextQuestion =
+        response === null
+          ? {
+              ...currentQuestion,
+              userAnswer: null,
+              isCorrect: null,
+              status: "skipped" as const,
+              skipped: true,
+              remainingSeconds: 0,
+            }
+          : {
+              ...currentQuestion,
+              userAnswer: response,
+              isCorrect,
+              status: "answered" as const,
+              skipped: false,
+              remainingSeconds: 0,
+            };
+      const questions = quiz.questions.map((question, index) =>
+        index === quiz.current ? nextQuestion : question
+      );
 
       return {
         ...state,
-        quiz: {
-          ...quiz,
-          questions: quiz.questions.map((question, index) =>
-            index === quiz.current
-              ? {
-                  ...currentQuestion,
-                  userAnswer: response,
-                  isCorrect,
-                  skipped: false,
-                  remainingSeconds: 0,
-                }
-              : question
-          ),
-          answered: true,
-          correct: isCorrect ? quiz.correct + 1 : quiz.correct,
-          wrong: !isCorrect ? quiz.wrong + 1 : quiz.wrong,
-        },
+        quiz: withDerivedStats({ ...quiz, questions }),
       };
     }
 
     case "FINISH_QUIZ": {
-      const { quiz } = state;
-      const result = buildResultData(
-        quiz.questions,
-        quiz.correct,
-        quiz.wrong,
-        quiz.skipped
-      );
-      return { ...state, view: "results", result };
+      const finishedQuiz = finalizeQuizQuestions(state.quiz);
+      const result = buildResultData(finishedQuiz.questions);
+      return { ...state, view: "results", quiz: finishedQuiz, result };
     }
 
     case "RETRY_QUIZ": {
       const { quiz } = state;
       const prepared = prepareQuestions(quiz.original, quiz.settings);
+      const nextQuiz = withDerivedStats({
+        ...quiz,
+        questions: prepared,
+        current: 0,
+        correct: 0,
+        wrong: 0,
+        skipped: 0,
+        startTime: Date.now(),
+        answered: false,
+      });
       return {
         ...state,
         view: "quiz",
         viewHistory: [...state.viewHistory, state.view],
-        quiz: {
-          ...quiz,
-          questions: prepared,
-          current: 0,
-          correct: 0,
-          wrong: 0,
-          skipped: 0,
-          startTime: Date.now(),
-          answered: false,
-        },
+        quiz: nextQuiz,
         result: null,
       };
     }
@@ -293,19 +307,15 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "RESTORE_SESSION": {
       const { quiz } = action.session;
-      const currentQuestion = quiz.questions[quiz.current];
+      const normalizedQuiz = withDerivedStats({
+        ...quiz,
+        questions: quiz.questions.map(normalizeQuestionState),
+      });
       return {
         ...state,
         view: "quiz",
         viewHistory: [...state.viewHistory, state.view],
-        quiz: {
-          ...quiz,
-          answered: Boolean(
-            currentQuestion?.skipped ||
-            currentQuestion?.userAnswer !== null ||
-            currentQuestion?.isCorrect !== null
-          ),
-        },
+        quiz: normalizedQuiz,
         result: null,
       };
     }
@@ -324,7 +334,7 @@ function reducer(state: AppState, action: Action): AppState {
       const questions = [...quiz.questions];
       const q = { ...questions[index], remainingSeconds: seconds };
       questions[index] = q;
-      return { ...state, quiz: { ...quiz, questions } };
+      return { ...state, quiz: withDerivedStats({ ...quiz, questions }) };
     }
 
     default:
@@ -403,6 +413,7 @@ export function useAppStore() {
   const skipQuestion = useCallback(() => dispatch({ type: "SKIP_QUESTION" }), []);
 
   const nextQuestion = useCallback(() => dispatch({ type: "NEXT_QUESTION" }), []);
+  const finishQuiz = useCallback(() => dispatch({ type: "FINISH_QUIZ" }), []);
   const gotoQuestion = useCallback((index: number) => dispatch({ type: "GOTO_QUESTION", index }), []);
 
   const retryQuiz = useCallback(() => dispatch({ type: "RETRY_QUIZ" }), []);
@@ -440,6 +451,7 @@ export function useAppStore() {
     timeoutQuestion,
     setRemaining,
     nextQuestion,
+    finishQuiz,
     retryQuiz,
     gotoQuestion,
     setRawText,

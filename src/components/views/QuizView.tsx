@@ -12,8 +12,13 @@ import type { Question } from "@/types/quiz";
 import type { AILinkSettings, AIProvider } from "@/types/quiz";
 import {Copy, Settings} from "lucide-react";
 
+type ConfirmAction =
+  | { type: "next" }
+  | { type: "finish" }
+  | { type: "goto"; index: number };
+
 function buildExplainPrompt(question: Question): string {
-  const userAnswer = question.skipped
+  const userAnswer = question.status === "skipped"
     ? "(skipped)"
     : Array.isArray(question.userAnswer)
       ? question.userAnswer.join(" | ")
@@ -128,7 +133,7 @@ function FillInput({
 }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const skipped = question.skipped === true;
+  const skipped = question.status === "skipped";
 
   useEffect(() => {
     setValue("");
@@ -204,7 +209,7 @@ function DragDropFill({
 }) {
   const blanks = useMemo(() => question.blanks ?? [], [question.blanks]);
   const [placements, setPlacements] = useState<Record<string, string>>({});
-  const skipped = question.skipped === true;
+  const skipped = question.status === "skipped";
 
   useEffect(() => {
     setPlacements({});
@@ -348,7 +353,7 @@ function TFOptions({
   answered: boolean;
   onAnswer: (val: string) => void;
 }) {
-  const skipped = question.skipped === true;
+  const skipped = question.status === "skipped";
   const getBtnClass = (val: string) => {
     const isCorrect = val === question.answer;
     const isSelected = val === question.userAnswer;
@@ -386,7 +391,7 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
+  const { state, answerQuestion, nextQuestion, finishQuiz, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
@@ -394,12 +399,14 @@ export default function QuizView() {
   const [navigatorOpen, setNavigatorOpen] = useState(true);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const [gearSpin, setGearSpin] = useState(false);
+  const [pendingConfirmAction, setPendingConfirmAction] = useState<ConfirmAction | null>(null);
   const gearTimerRef = useRef<number | null>(null);
   const [aiSettings, setAiSettings] = useState<AILinkSettings>(() => getAILinkSettings());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef<number>(quiz.settings.timerSeconds);
   const prevIndexRef = useRef<number>(quiz.current);
   const draftAnswerRef = useRef<string | string[] | null>(null);
+  const unresolvedCount = quiz.questions.filter((item) => item.status !== "answered").length;
 
   const updateDraftAnswer = useCallback((response: string | string[]) => {
     draftAnswerRef.current = response;
@@ -484,8 +491,26 @@ export default function QuizView() {
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!question) return;
-    if (e.key === "ArrowLeft") { e.preventDefault(); gotoQuestion(Math.max(0, quiz.current - 1)); return; }
-    if (e.key === "ArrowRight") { e.preventDefault(); nextQuestion(); return; }
+    if (pendingConfirmAction) return;
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      gotoQuestion(Math.max(0, quiz.current - 1));
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const isLastQuestion = quiz.current === quiz.questions.length - 1;
+      if (isLastQuestion) {
+        if (unresolvedCount > 0) {
+          setPendingConfirmAction({ type: "finish" });
+          return;
+        }
+        finishQuiz();
+      } else {
+        nextQuestion();
+      }
+      return;
+    }
     if (quiz.answered) return;
     if (question.type === "MCQ") {
       const map: Record<string, string> = { a: "A", b: "B", c: "C", d: "D" };
@@ -496,7 +521,7 @@ export default function QuizView() {
       if (e.key.toLowerCase() === "t") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("TRUE"); }
       if (e.key.toLowerCase() === "f") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("FALSE"); }
     }
-  }, [question, quiz.answered, answerQuestion, nextQuestion, gotoQuestion, setRemaining]);
+  }, [question, quiz.answered, quiz.current, quiz.questions.length, unresolvedCount, pendingConfirmAction, answerQuestion, nextQuestion, finishQuiz, gotoQuestion, setRemaining]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -511,11 +536,11 @@ export default function QuizView() {
   };
 
   // Compute if the question is ACTUALLY answered (not just skipped)
-  const isActuallyAnswered = question.isCorrect !== null;
+  const isActuallyAnswered = question.status === "answered";
 
   const progress = (quiz.current / quiz.questions.length) * 100;
   const isLast = quiz.current === quiz.questions.length - 1;
-  const showExplanation = isActuallyAnswered && !question.skipped && question.explanation && quiz.settings.explanationTiming === "after";
+  const showExplanation = isActuallyAnswered && question.explanation && quiz.settings.explanationTiming === "after";
   const followUpPrompt = buildExplainPrompt(question);
 
   const updateProviderSettings = (
@@ -554,17 +579,75 @@ export default function QuizView() {
       "flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
 
     if (index === quiz.current) return base + "bg-accent text-bg font-bold ";
-    if (item?.isCorrect === true) return base + "bg-success/20 border border-success text-success ";
-    if (item?.isCorrect === false) return base + "bg-error/20 border border-error text-error ";
+    if (item?.status === "answered" && item?.isCorrect === true) return base + "bg-success/20 border border-success text-success ";
+    if (item?.status === "answered" && item?.isCorrect === false) return base + "bg-error/20 border border-error text-error ";
+    if (item?.status === "skipped") return base + "bg-border/60 border border-border text-secondary ";
     return base + "bg-bg border border-border text-secondary hover:bg-border ";
   };
+
+  const requestNavigation = (action: ConfirmAction) => {
+    if (action.type === "goto") {
+      if (action.index === quiz.current) return;
+      gotoQuestion(action.index);
+      return;
+    }
+
+    if (action.type === "next") {
+      nextQuestion();
+      return;
+    }
+
+    if (unresolvedCount > 0) {
+      setPendingConfirmAction(action);
+      return;
+    }
+    finishQuiz();
+  };
+
+  const handleForward = () => {
+    if (isLast) {
+      requestNavigation({ type: "finish" });
+      return;
+    }
+    requestNavigation({ type: "next" });
+  };
+
+  const confirmPendingAction = () => {
+    if (!pendingConfirmAction) return;
+    const action = pendingConfirmAction;
+    setPendingConfirmAction(null);
+
+    if (action.type === "finish") {
+      finishQuiz();
+      return;
+    }
+
+    if (action.type === "goto") {
+      gotoQuestion(action.index);
+      return;
+    }
+
+    nextQuestion();
+  };
+
+  const forwardLabel = isLast
+    ? isActuallyAnswered
+      ? "See results"
+      : "Finish quiz"
+    : isActuallyAnswered
+      ? "Next question"
+      : "Skip & next";
+
+  const confirmTitle = "Finish with pending questions?";
+  const confirmBody = `You have ${unresolvedCount} skipped or unanswered question${unresolvedCount === 1 ? "" : "s"}. Results will count them as skipped.`;
+  const confirmLabel = "Finish quiz";
 
   const renderNavigatorGrid = () => (
     <div className="grid grid-cols-5 gap-2">
       {quiz.questions.map((_, i) => (
         <button
           key={`idx-${i}`}
-          onClick={() => gotoQuestion(i)}
+          onClick={() => requestNavigation({ type: "goto", index: i })}
           data-tutorial="quiz-nav-jump"
           className={getNavigatorButtonClass(i)}
           aria-label={`Jump to question ${i + 1}`}
@@ -624,10 +707,10 @@ export default function QuizView() {
             <div className="mt-4 flex flex-col gap-3 text-sm">
               <button
                 type="button"
-                onClick={nextQuestion}
+                onClick={handleForward}
                 className="text-left text-accent hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
               >
-                {isLast ? "Finish review" : "Next question"}
+                {forwardLabel}
               </button>
             </div>
           </div>
@@ -690,7 +773,7 @@ export default function QuizView() {
           <div key={question.id} className="px-6 py-7 sm:px-7 sm:py-8 animate-fade-in">
             <p className="text-md font-medium text-primary leading-relaxed mb-7">{question.question}</p>
 
-            {question.skipped && <p className="text-sm text-secondary mb-4">Skipped</p>}
+            {question.status === "skipped" && <p className="text-sm text-secondary mb-4">Skipped</p>}
 
             {question.type === "MCQ" && (
               <MCQOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
@@ -821,27 +904,57 @@ export default function QuizView() {
           <div className="border-t border-border px-6 py-4 sm:px-7">
             <div className="flex flex-wrap items-center gap-3 animate-fade-in">
               <button
-                onClick={() => gotoQuestion(Math.max(0, quiz.current - 1))}
+                onClick={() => requestNavigation({ type: "goto", index: Math.max(0, quiz.current - 1) })}
                 disabled={quiz.current === 0}
                 className="text-secondary text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-40"
               >
                 ← Previous
               </button>
 
-              {isActuallyAnswered && (
-                <>
-                  <button
-                    onClick={nextQuestion}
-                    className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-                  >
-                    {isLast ? "See results →" : "Next question →"}
-                  </button>
-                </>
-              )}
+              <button
+                onClick={handleForward}
+                className="text-accent text-base hover:opacity-80 transition-opacity duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                {forwardLabel} →
+              </button>
             </div>
           </div>
         </section>
       </div>
+
+      {pendingConfirmAction && (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="skip-confirm-title"
+        >
+          <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-card">
+            <h2 id="skip-confirm-title" className="text-base font-semibold text-primary">
+              {confirmTitle}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-secondary">
+              {confirmBody}
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingConfirmAction(null)}
+                className="rounded-md border border-border px-3.5 py-2 text-sm text-secondary transition-colors duration-[150ms] hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmPendingAction}
+                className="rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white transition-opacity duration-[150ms] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

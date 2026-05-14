@@ -60,7 +60,14 @@ function arraysMatch(left: string[], right: string[]): boolean {
 
 /** Prepare a fresh quiz round: reset per-question state and apply shuffling. */
 export function prepareQuestions(questions: Question[], settings: QuizSettings): Question[] {
-  let qs: Question[] = questions.map((q) => ({ ...q, userAnswer: null, isCorrect: null, skipped: false, remainingSeconds: settings.timerSeconds }));
+  let qs: Question[] = questions.map((q) => ({
+    ...q,
+    userAnswer: null,
+    isCorrect: null,
+    status: "unseen",
+    skipped: false,
+    remainingSeconds: settings.timerSeconds,
+  }));
   if (settings.shuffle) qs = fisherYates(qs);
   if (settings.shuffleOptions) qs = qs.map(shuffleOptions);
   return qs;
@@ -88,13 +95,18 @@ export function checkAnswer(q: Question, response: string | string[]): boolean {
   return expectedAnswers.some((answer) => normalizeText(answer) === actualAnswer);
 }
 
+/** Count score data from the question list, which is the source of truth. */
+export function getQuestionStats(questions: Question[]) {
+  return {
+    correct: questions.filter((question) => question.status === "answered" && question.isCorrect === true).length,
+    wrong: questions.filter((question) => question.status === "answered" && question.isCorrect === false).length,
+    skipped: questions.filter((question) => question.status === "skipped").length,
+  };
+}
+
 /** Build the result payload shown on the results screen. */
-export function buildResultData(
-  questions: Question[],
-  correct: number,
-  wrong: number,
-  skipped: number
-): ResultData {
+export function buildResultData(questions: Question[]): ResultData {
+  const { correct, wrong, skipped } = getQuestionStats(questions);
   return {
     questions,
     correct,

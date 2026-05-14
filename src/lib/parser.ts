@@ -151,6 +151,7 @@ function parseJsonQuiz(rawText: string): ParseResult | null {
         explanation,
         userAnswer: null,
         isCorrect: null,
+        status: "unseen",
       });
       return;
     }
@@ -171,6 +172,7 @@ function parseJsonQuiz(rawText: string): ParseResult | null {
         explanation,
         userAnswer: null,
         isCorrect: null,
+        status: "unseen",
       });
       return;
     }
@@ -208,6 +210,7 @@ function parseJsonQuiz(rawText: string): ParseResult | null {
           explanation,
           userAnswer: null,
           isCorrect: null,
+          status: "unseen",
         });
         return;
       }
@@ -229,6 +232,7 @@ function parseJsonQuiz(rawText: string): ParseResult | null {
         explanation,
         userAnswer: null,
         isCorrect: null,
+        status: "unseen",
       });
       return;
     }
@@ -328,6 +332,7 @@ function parseLegacyQuiz(rawText: string): ParseResult {
       explanation,
       userAnswer: null,
       isCorrect: null,
+      status: "unseen",
     });
   }
 
