@@ -218,72 +218,79 @@ export default function ResultsView() {
 
   return (
     <div className="max-w-content-sm mx-auto px-4 pt-10 pb-20">
-      {/* Label */}
-      <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-5">
-        Results
-      </p>
+      <section className="mb-10 rounded-lg border border-border bg-surface p-5 shadow-card sm:p-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary">
+                Results
+              </p>
+              <span className="rounded-md border border-border bg-bg px-2 py-0.5 text-xs font-medium text-secondary">
+                {percentage}%
+              </span>
+            </div>
 
-      {/* Score */}
-      <div className="mb-2">
-        <span
-          className="text-[3rem] font-semibold text-primary leading-none"
-          aria-live="polite"
-        >
-          {correct}/{total}
-        </span>
-        <span className="text-base text-secondary ml-2.5">{percentage}%</span>
-      </div>
+            <div>
+              <span
+                className="text-[3rem] font-semibold text-primary leading-none"
+                aria-live="polite"
+              >
+                {correct}/{total}
+              </span>
+            </div>
 
-      {/* Message */}
-      <p className="text-base text-secondary italic mb-7">{message}</p>
+            <p className="mt-3 text-base text-secondary italic">{message}</p>
+          </div>
 
-      {/* Stat pills */}
-      <div className="flex flex-wrap gap-2.5 mb-5" aria-label="Quiz statistics">
-        <span className="bg-surface border border-border rounded-lg px-4 py-2 text-sm text-primary">
-          ✓ {correct} correct
-        </span>
-        <span className="bg-surface border border-border rounded-lg px-4 py-2 text-sm text-primary">
-          ✗ {wrong} wrong
-        </span>
-        <span className="bg-surface border border-border rounded-lg px-4 py-2 text-sm text-primary">
-          — {skipped} skipped
-        </span>
-      </div>
-
-      {/* Progress bar */}
-      <div
-        className="h-1 w-full bg-border rounded-full overflow-hidden mb-8"
-        aria-label="Score breakdown"
-      >
-        <div
-          className="h-full flex transition-[width] duration-[400ms] ease-out"
-          style={{ width: `${barWidth}%` }}
-        >
-          <div className="bg-success" style={{ width: `${correctPct}%` }} />
-          <div className="bg-error" style={{ width: `${wrongPct}%` }} />
-          <div className="bg-secondary" style={{ width: `${skipPct}%` }} />
+          <div className="grid grid-cols-1 gap-2 sm:min-w-[180px]" aria-label="Quiz statistics">
+            <span className="flex items-center justify-between rounded-md border border-border bg-bg px-3 py-2 text-sm text-primary">
+              <span className="text-success">✓ Correct</span>
+              <span className="font-medium">{correct}</span>
+            </span>
+            <span className="flex items-center justify-between rounded-md border border-border bg-bg px-3 py-2 text-sm text-primary">
+              <span className="text-error">✗ Wrong</span>
+              <span className="font-medium">{wrong}</span>
+            </span>
+            <span className="flex items-center justify-between rounded-md border border-border bg-bg px-3 py-2 text-sm text-primary">
+              <span className="text-secondary">— Skipped</span>
+              <span className="font-medium">{skipped}</span>
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Actions */}
-      <div className="flex justify-center items-center gap-0 mb-10 text-sm">
-        {[
-          { label: "Try again", action: retryQuiz },
-          { label: "New quiz", action: () => navigate("input") },
-          { label: "Share", action: handleShare },
-        ].map((item, i) => (
-          <span key={item.label} className="flex items-center">
-            {i > 0 && <span className="text-secondary mx-2.5">·</span>}
-            <button
-              onClick={item.action}
-              className="text-primary hover:text-secondary transition-colors duration-[150ms]
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-            >
-              {item.label}
-            </button>
-          </span>
-        ))}
-      </div>
+        <div
+          className="mt-6 h-1 w-full bg-border rounded-full overflow-hidden"
+          aria-label="Score breakdown"
+        >
+          <div
+            className="h-full flex transition-[width] duration-[400ms] ease-out"
+            style={{ width: `${barWidth}%` }}
+          >
+            <div className="bg-success" style={{ width: `${correctPct}%` }} />
+            <div className="bg-error" style={{ width: `${wrongPct}%` }} />
+            <div className="bg-secondary" style={{ width: `${skipPct}%` }} />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-center items-center gap-0 text-sm">
+          {[
+            { label: "Try again", action: retryQuiz },
+            { label: "New quiz", action: () => navigate("input") },
+            { label: "Share", action: handleShare },
+          ].map((item, i) => (
+            <span key={item.label} className="flex items-center">
+              {i > 0 && <span className="text-secondary mx-2.5">·</span>}
+              <button
+                onClick={item.action}
+                className="text-primary hover:text-secondary transition-colors duration-[150ms]
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                {item.label}
+              </button>
+            </span>
+          ))}
+        </div>
+      </section>
 
       {/* Review divider */}
       <div className="flex items-center gap-3 mb-5">
