@@ -281,7 +281,7 @@ export default function InputView() {
         >
           <div className="pt-5 flex flex-col gap-5 bg-surface border border-border rounded-md p-4 mt-2">
             <p className="text-xs text-secondary">
-              Configure how explanation links open in ChatGPT and Claude. Use "Continue chat" to keep using the same conversation.
+              Configure how explanation links open in ChatGPT and Claude. When you select "Continue chat" the explanation will open in the same conversation and continue where you left off; select "New chat" to always start a fresh conversation.
             </p>
             {(["chatgpt", "claude"] as AIProvider[]).map((provider) => {
               const label = provider === "chatgpt" ? "ChatGPT" : "Claude";
@@ -328,7 +328,7 @@ export default function InputView() {
                                }`}
                   />
                   <p className="text-xs text-secondary mt-1">
-                    Only used in "Continue chat" mode. Falls back to new chat if invalid.
+                    Used only when "Continue chat" is selected — the explanation opens in the specified conversation and continues where you left off. If the conversation reference is invalid, the app will open a new chat instead.
                   </p>
                 </div>
               );

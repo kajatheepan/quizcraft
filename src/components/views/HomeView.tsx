@@ -63,11 +63,12 @@ export default function HomeView() {
   ].sort((a, b) => b.sortTime - a.sortTime);
 
   return (
-    <div className="flex flex-col justify-center min-h-[calc(100vh-52px)] max-w-content-sm mx-auto px-4 py-0">
-      {/* Label */}
-      <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-4">
-        Study Smarter
-      </p>
+    <div className="flex flex-col justify-center items-center w-full min-h-[calc(100vh-52px)] px-4 py-12">
+      <div className="w-full max-w-content-sm">
+        {/* Label */}
+        <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-4">
+          Study Smarter
+        </p>
 
       {/* Heading */}
       <h1 className="text-[2.5rem] font-semibold text-primary leading-[1.15] tracking-tight mb-5">
@@ -231,7 +232,7 @@ export default function HomeView() {
           })}
         </div>
       )}
-
+      </div>
     </div>
   );
 }

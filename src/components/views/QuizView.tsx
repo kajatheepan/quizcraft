@@ -385,7 +385,7 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
+  const { state, answerQuestion, nextQuestion, timeoutQuestion, setRemaining, gotoQuestion, showToast, navigateBack } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
@@ -556,6 +556,29 @@ export default function QuizView() {
       <div className="fixed top-[52px] left-0 right-0 h-[3px] bg-border z-[99]" aria-hidden="true">
         <div className="h-full bg-accent transition-[width] duration-[250ms] ease-out" style={{ width: `${progress}%` }} />
       </div>
+
+      <aside
+        className={[
+          "hidden lg:block fixed top-[52px] left-0 z-40 h-[calc(100vh-52px)] w-[280px]",
+          "bg-surface border-r border-border shadow-card transition-transform duration-[250ms] ease-out",
+        ].join(" ")}
+        aria-hidden="true"
+      >
+        <div className="h-full px-4 pt-9 pb-8">
+          <button
+            type="button"
+            onClick={() => navigateBack()}
+            aria-label="Back"
+            className={[
+              "absolute top-4 left-4 h-10 w-10 rounded-full flex items-center justify-center",
+              "bg-bg border border-border text-primary hover:bg-border transition-colors duration-[150ms]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            ].join(" ")}
+          >
+            ←
+          </button>
+        </div>
+      </aside>
 
       <aside
         className={[
