@@ -428,6 +428,10 @@ export default function QuizView() {
     draftAnswerRef.current = null;
   }, [question?.id]);
 
+  useEffect(() => {
+    setAiSettingsOpen(false);
+  }, [question?.id]);
+
   // Timer
   useEffect(() => {
     if (!quiz.settings.timer) { setTimerDisplay(""); return; }
@@ -512,7 +516,6 @@ export default function QuizView() {
   const progress = (quiz.current / quiz.questions.length) * 100;
   const isLast = quiz.current === quiz.questions.length - 1;
   const showExplanation = isActuallyAnswered && !question.skipped && question.explanation && quiz.settings.explanationTiming === "after";
-  const fillLabel = question.fillMode === "dragdrop" ? "Drag & Drop" : "Fill";
   const followUpPrompt = buildExplainPrompt(question);
 
   const updateProviderSettings = (
@@ -672,9 +675,6 @@ export default function QuizView() {
                 Question {quiz.current + 1} of {quiz.questions.length}
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-2xs font-medium uppercase tracking-[0.05em] text-primary bg-border px-2.5 py-0.5 rounded-full">
-                  {question.type === "FILL" ? fillLabel : question.type}
-                </span>
                 <span className="text-sm text-secondary" aria-live="polite">
                   ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
                 </span>
