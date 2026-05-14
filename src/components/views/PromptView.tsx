@@ -192,7 +192,7 @@ export default function PromptView() {
             aria-label="Generated prompt preview"
             aria-live="polite"
             className="bg-bg border border-border rounded-lg p-4 min-h-[400px] max-h-[500px]
-                       overflow-y-auto font-mono text-[12px] text-[#A0A0A0] leading-[1.7]
+                       overflow-y-auto font-mono text-[12px] text-secondary leading-[1.7]
                        whitespace-pre-wrap"
           >
             {prompt}

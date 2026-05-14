@@ -5,6 +5,7 @@
 export type QuestionType = "MCQ" | "FILL" | "TF";
 export type FillMode = "typed" | "dragdrop";
 export type QuestionStatus = "unseen" | "answered" | "skipped";
+export type ThemeMode = "system" | "light" | "dark";
 
 export interface DragBlank {
   id: string;
@@ -115,6 +116,7 @@ export interface StoredData {
   activeSession?: QuizSession | null;
   history?: HistoryEntry[];
   aiLinks?: Partial<AILinkSettings>;
+  themeMode?: ThemeMode;
 }
 
 export type ViewName = "home" | "input" | "quiz" | "results" | "prompt";

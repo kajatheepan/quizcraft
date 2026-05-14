@@ -15,14 +15,54 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root {
+  color-scheme: dark;
+  --color-bg: 0 0% 6%;
+  --color-surface: 0 0% 10%;
+  --color-border: 0 0% 18%;
+  --color-accent: 246 89% 70%;
+  --color-primary: 0 0% 94%;
+  --color-secondary: 0 0% 48%;
+  --color-success: 142 72% 62%;
+  --color-error: 0 91% 71%;
+  --color-scrollbar-track: 0 0% 6%;
+  --color-scrollbar-thumb: 0 0% 20%;
+  --color-home-gradient-a: 246 89% 70% / 0.14;
+  --color-home-gradient-b: 190 80% 60% / 0.06;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: 42 38% 97%;
+  --color-surface: 0 0% 100%;
+  --color-border: 35 16% 84%;
+  --color-accent: 249 78% 62%;
+  --color-primary: 220 18% 14%;
+  --color-secondary: 220 9% 43%;
+  --color-success: 145 63% 37%;
+  --color-error: 0 72% 52%;
+  --color-scrollbar-track: 42 38% 94%;
+  --color-scrollbar-thumb: 35 14% 75%;
+  --color-home-gradient-a: 249 78% 62% / 0.12;
+  --color-home-gradient-b: 199 85% 48% / 0.08;
+  --shadow-card: 0 1px 2px rgba(18, 24, 38, 0.08), 0 8px 24px rgba(18, 24, 38, 0.04);
+}
+
+body {
+  transition:
+    background-color var(--anim-short) var(--ease-quick),
+    color var(--anim-short) var(--ease-quick);
+}
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0D0D0D; }
-::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 3px; }
+::-webkit-scrollbar-track { background: hsl(var(--color-scrollbar-track)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--color-scrollbar-thumb)); border-radius: 3px; }
 
 /* ── FOCUS RING ── */
 :focus-visible {
-  outline: 2px solid #7C6FF7;
+  outline: 2px solid hsl(var(--color-accent));
   outline-offset: 2px;
 }
 
@@ -35,7 +75,7 @@ input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #7C6FF7;
+  background: hsl(var(--color-accent));
   border: none;
   cursor: pointer;
 }
@@ -101,6 +141,13 @@ input[type="range"]::-moz-range-thumb {
 
 /* Stagger helpers */
 .stagger-item { opacity: 0; transform: translateY(6px); animation: fade-in var(--anim-short) var(--ease-quick) forwards; }
+
+.home-gradient {
+  background:
+    radial-gradient(circle at 25% 12%, hsl(var(--color-home-gradient-a)) 0, transparent 34%),
+    radial-gradient(circle at 85% 20%, hsl(var(--color-home-gradient-b)) 0, transparent 30%),
+    hsl(var(--color-bg));
+}
 
 /* Respect user's motion preference */
 @media (prefers-reduced-motion: reduce) {

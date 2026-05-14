@@ -63,7 +63,7 @@ export default function HomeView() {
   ].sort((a, b) => b.sortTime - a.sortTime);
 
   return (
-    <div className="flex flex-col justify-center items-center w-full min-h-[calc(100vh-52px)] px-4 py-12">
+    <div className="home-gradient flex flex-col justify-center items-center w-full min-h-[calc(100vh-52px)] px-4 py-12">
       <div className="w-full max-w-content-sm">
         {/* Label */}
         <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-4">

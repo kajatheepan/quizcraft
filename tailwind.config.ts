@@ -9,14 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg:        "#0D0D0D",
-        surface:   "#161616",
-        border:    "#2A2A2A",
-        accent:    "#7C6FF7",
-        primary:   "#F0F0F0",
-        secondary: "#6B6B6B",
-        success:   "#4ADE80",
-        error:     "#F87171",
+        bg:        "hsl(var(--color-bg) / <alpha-value>)",
+        surface:   "hsl(var(--color-surface) / <alpha-value>)",
+        border:    "hsl(var(--color-border) / <alpha-value>)",
+        accent:    "hsl(var(--color-accent) / <alpha-value>)",
+        primary:   "hsl(var(--color-primary) / <alpha-value>)",
+        secondary: "hsl(var(--color-secondary) / <alpha-value>)",
+        success:   "hsl(var(--color-success) / <alpha-value>)",
+        error:     "hsl(var(--color-error) / <alpha-value>)",
       },
       fontFamily: {
         sans:  ["Inter", "sans-serif"],
@@ -39,7 +39,7 @@ const config: Config = {
         "3xl": "64px",
       },
       boxShadow: {
-        card: "0 1px 3px rgba(0,0,0,0.4)",
+        card: "var(--shadow-card)",
       },
       maxWidth: {
         "content-sm": "560px",

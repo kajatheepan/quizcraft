@@ -3,7 +3,7 @@
 // and small user preferences. Keep logic minimal and defensive for SSR.
 
 import { STORAGE_KEY } from "@/lib/constants";
-import type { AILinkSettings, HistoryEntry, QuizSession, QuizSettings, StoredData } from "@/types/quiz";
+import type { AILinkSettings, HistoryEntry, QuizSession, QuizSettings, StoredData, ThemeMode } from "@/types/quiz";
 
 const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
   chatgpt: { mode: "new", conversationRef: "" },
@@ -178,6 +178,16 @@ export function saveAILinkSettings(settings: Partial<AILinkSettings>): void {
     claude: { ...current.claude, ...(settings.claude ?? {}) },
   };
   save({ ...data, aiLinks: next });
+}
+
+export function getThemeMode(): ThemeMode {
+  const mode = load().themeMode;
+  return mode === "light" || mode === "dark" || mode === "system" ? mode : "system";
+}
+
+export function saveThemeMode(themeMode: ThemeMode): void {
+  const data = load();
+  save({ ...data, themeMode });
 }
 
 export { DEFAULT_AI_LINK_SETTINGS };
