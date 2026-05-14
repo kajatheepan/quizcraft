@@ -1,5 +1,8 @@
 import { ImageResponse } from "next/og";
 
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const logoUrl = `${siteUrl}/logo.webp`;
+
 export const runtime = "edge";
 export const alt = "QuizCraft Plus - Practice AI Generated Quizzes";
 export const size = {
@@ -35,22 +38,17 @@ export default function Image() {
             fontWeight: 600,
           }}
         >
-          <div
+          <img
+            src={logoUrl}
+            alt=""
+            width="64"
+            height="64"
             style={{
-              width: "56px",
-              height: "56px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              width: "64px",
+              height: "64px",
               borderRadius: "16px",
-              background: "#705aff",
-              color: "#ffffff",
-              fontSize: "30px",
-              fontWeight: 700,
             }}
-          >
-            Q
-          </div>
+          />
           QuizCraft Plus
         </div>
 

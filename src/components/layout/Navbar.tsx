@@ -4,6 +4,7 @@
 // handlers here — navigation logic is delegated to `useAppStore`.
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { getThemeMode, saveThemeMode } from "@/lib/storage";
@@ -89,11 +90,22 @@ export default function Navbar() {
         <button
           type="button"
           onClick={handleLogo}
-          className="text-[15px] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-sm"
+          className="inline-flex items-center gap-2 text-[15px] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-sm"
           aria-label="QuizCraft Plus — go to home"
         >
-          <span className="font-semibold text-primary">QuizCraft</span>
-          <span className="font-normal text-secondary"> Plus</span>
+          <Image
+            src="/logo.webp"
+            alt=""
+            width={24}
+            height={24}
+            className="h-6 w-6 rounded-md"
+            priority
+            aria-hidden="true"
+          />
+          <span>
+            <span className="font-semibold text-primary">QuizCraft</span>
+            <span className="font-normal text-secondary"> Plus</span>
+          </span>
         </button>
       </div>
 
