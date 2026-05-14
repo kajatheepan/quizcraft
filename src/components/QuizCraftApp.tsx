@@ -1,5 +1,9 @@
 "use client";
 
+// App shell: mounts the top-level navbar, animated view container and
+// global helpers (tutorial, toast). Keep this file focused on composition
+// rather than business logic.
+
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import Navbar from "@/components/layout/Navbar";

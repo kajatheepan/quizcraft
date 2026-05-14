@@ -1,5 +1,8 @@
 "use client";
 
+// Top navigation bar. Keep accessibility attributes and small, focused
+// handlers here — navigation logic is delegated to `useAppStore`.
+
 import { useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
 

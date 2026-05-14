@@ -1,4 +1,6 @@
 // ── QUIZ TYPES ────────────────────────────────────────────────────────────────
+// Central TypeScript types used across the app. Keep these stable and
+// minimal — they form the public shape persisted to localStorage.
 
 export type QuestionType = "MCQ" | "FILL" | "TF";
 export type FillMode = "typed" | "dragdrop";
@@ -9,6 +11,7 @@ export interface DragBlank {
   acceptedAnswers?: string[];
 }
 
+/** Represents a single quiz question and its runtime state. */
 export interface Question {
   id: number;
   type: QuestionType;
@@ -31,6 +34,7 @@ export interface ParseResult {
   errors: string[];
 }
 
+/** Settings controlling quiz behavior (shuffling, timers, explanation timing). */
 export interface QuizSettings {
   shuffle: boolean;
   shuffleOptions: boolean;
@@ -52,6 +56,7 @@ export interface AILinkSettings {
   claude: AIProviderLinkConfig;
 }
 
+/** Runtime snapshot of an active quiz round. Persisted inside `QuizSession`. */
 export interface QuizState {
   questions: Question[];
   original: Question[];
@@ -64,6 +69,7 @@ export interface QuizState {
   answered: boolean;
 }
 
+/** Result payload produced when a quiz completes. */
 export interface ResultData {
   questions: Question[];
   correct: number;
@@ -73,6 +79,7 @@ export interface ResultData {
   percentage: number;
 }
 
+/** A lightweight history entry for completed quizzes shown on the home screen. */
 export interface HistoryEntry {
   id?: string;
   sessionId?: string;
@@ -87,6 +94,7 @@ export interface HistoryEntry {
 
 export type QuizSessionStatus = "in-progress" | "completed";
 
+/** An in-progress or completed session containing a full `QuizState`. */
 export interface QuizSession {
   id: string;
   title: string;

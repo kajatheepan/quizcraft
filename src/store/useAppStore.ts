@@ -1,8 +1,9 @@
 "use client";
 
 // ── APP STORE (Zustand-free — React Context + useReducer) ─────────────────────
-// Using built-in React state management to keep dependencies minimal.
-// This file exports a single shared store via module-level state + listeners.
+// Small, dependency-free global store implemented with a module-level
+// singleton and a reducer. This keeps the app simple and easy to reason
+// about while remaining testable. Listeners are used to notify components.
 
 import { useCallback, useEffect, useReducer } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
@@ -332,7 +333,9 @@ function reducer(state: AppState, action: Action): AppState {
 }
 
 // ── MODULE-LEVEL SINGLETON ────────────────────────────────────────────────────
-// Allows multiple components to share state without Context boilerplate.
+// A tiny pub/sub layer around the reducer so components can `useAppStore()`
+// without React Context. This pattern is intentionally simple and suitable
+// for small apps where a full state library would be overkill.
 
 type Listener = (state: AppState) => void;
 let globalState = initialState;
@@ -377,7 +380,8 @@ function dispatch(action: Action) {
 }
 
 // ── HOOK ─────────────────────────────────────────────────────────────────────
-
+// Expose a compact API; consumers receive the current `state` and a set of
+// callback actions. All callbacks dispatch into the module-level `dispatch`.
 export function useAppStore() {
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 

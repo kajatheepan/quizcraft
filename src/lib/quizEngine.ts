@@ -1,7 +1,10 @@
 // ── QUIZ ENGINE ───────────────────────────────────────────────────────────────
+// Utility helpers to prepare quizzes, shuffle options, check answers and build
+// result payloads. Keep pure functions here for easy unit testing.
 
 import type { Question, QuizSettings, ResultData } from "@/types/quiz";
 
+/** Return a new array with elements shuffled using Fisher–Yates. */
 export function fisherYates<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -11,6 +14,7 @@ export function fisherYates<T>(arr: T[]): T[] {
   return a;
 }
 
+/** Shuffle MCQ option order while remapping the answer key. */
 export function shuffleOptions(q: Question): Question {
   if (q.type !== "MCQ") return q;
   const letters = Object.keys(q.options);
@@ -28,6 +32,7 @@ export function shuffleOptions(q: Question): Question {
   return { ...q, options: newOptions, answer: newAnswerLetter };
 }
 
+// Normalization helper used for comparing free text answers.
 function normalizeText(value: string): string {
   return value
     .trim()
@@ -40,17 +45,20 @@ function normalizeText(value: string): string {
     .trim();
 }
 
+// Turn various answer shapes into a normalized array of non-empty strings.
 function normalizeAnswerList(value: string | string[] | null | undefined): string[] {
   if (!value) return [];
   const answers = Array.isArray(value) ? value : [value];
   return answers.map((answer) => answer.trim()).filter((answer) => answer.length > 0);
 }
 
+// Compare two arrays of answers after normalizing each item.
 function arraysMatch(left: string[], right: string[]): boolean {
   if (left.length !== right.length) return false;
   return left.every((item, index) => normalizeText(item) === normalizeText(right[index]));
 }
 
+/** Prepare a fresh quiz round: reset per-question state and apply shuffling. */
 export function prepareQuestions(questions: Question[], settings: QuizSettings): Question[] {
   let qs: Question[] = questions.map((q) => ({ ...q, userAnswer: null, isCorrect: null, skipped: false, remainingSeconds: settings.timerSeconds }));
   if (settings.shuffle) qs = fisherYates(qs);
@@ -58,6 +66,10 @@ export function prepareQuestions(questions: Question[], settings: QuizSettings):
   return qs;
 }
 
+/**
+ * Check whether the provided `response` matches a question's answer.
+ * Handles MCQ/TF, typed fill and drag/drop fill modes.
+ */
 export function checkAnswer(q: Question, response: string | string[]): boolean {
   if (q.type === "MCQ" || q.type === "TF") {
     const expected = typeof q.answer === "string" ? q.answer : q.answer[0] ?? "";
@@ -76,6 +88,7 @@ export function checkAnswer(q: Question, response: string | string[]): boolean {
   return expectedAnswers.some((answer) => normalizeText(answer) === actualAnswer);
 }
 
+/** Build the result payload shown on the results screen. */
 export function buildResultData(
   questions: Question[],
   correct: number,
@@ -92,6 +105,7 @@ export function buildResultData(
   };
 }
 
+/** Friendly message for a score percentage. */
 export function getScoreMessage(percentage: number): string {
   if (percentage >= 90) return "Excellent work.";
   if (percentage >= 70) return "Good job — nearly there.";
@@ -99,6 +113,7 @@ export function getScoreMessage(percentage: number): string {
   return "More practice needed.";
 }
 
+/** Build a deterministic prompt to send to an LLM to generate quiz JSON. */
 export function buildPrompt(
   subject: string,
   count: number,

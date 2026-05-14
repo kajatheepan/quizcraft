@@ -1,5 +1,9 @@
 "use client";
 
+// Task-driven interactive tutorial. Anchors to UI elements using
+// `data-tutorial` selectors and advances when the user completes actions.
+// Designed to be non-invasive and optional.
+
 import { useEffect, useMemo, useState } from "react";
 import { getTutorialSeen, saveTutorialSeen } from "@/lib/storage";
 import type { ViewName } from "@/types/quiz";

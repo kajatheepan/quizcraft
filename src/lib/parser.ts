@@ -1,4 +1,7 @@
 // ── PARSER ────────────────────────────────────────────────────────────────────
+// Parsing utilities to accept both structured JSON quiz payloads and a
+// legacy plain-text format. Functions here are defensive and return detailed
+// error messages suitable for showing to the user.
 
 import type { DragBlank, FillMode, ParseResult, Question, QuestionType } from "@/types/quiz";
 
@@ -22,6 +25,7 @@ type QuizJsonQuestion = {
   explanation?: string;
 };
 
+// Convert a loose type string into a canonical QuestionType or null when unknown.
 function normalizeType(raw: string): QuestionType | null {
   const t = raw.trim().toUpperCase();
   if (t === "MCQ" || t === "MULTIPLE CHOICE") return "MCQ";
@@ -30,12 +34,14 @@ function normalizeType(raw: string): QuestionType | null {
   return null;
 }
 
+// Normalize various synonyms for drag/drop fill mode.
 function normalizeFillMode(raw: string | undefined): FillMode {
   const value = raw?.trim().toLowerCase();
   if (value === "dragdrop" || value === "drag-drop" || value === "drag and drop") return "dragdrop";
   return "typed";
 }
 
+// Normalizes free text for comparison and parsing.
 function normalizeText(value: string): string {
   return value
     .trim()
@@ -48,12 +54,14 @@ function normalizeText(value: string): string {
     .trim();
 }
 
+// Turn an answer value into an array of trimmed answers.
 function normalizeAnswers(value: string | string[] | undefined): string[] {
   if (!value) return [];
   const answers = Array.isArray(value) ? value : [value];
   return answers.map((answer) => answer.trim()).filter((answer) => answer.length > 0);
 }
 
+// Convert a raw blanks array into well-formed `DragBlank` entries.
 function normalizeBlanks(blanks: QuizJsonQuestion["blanks"]): DragBlank[] {
   return (blanks ?? [])
     .map((blank, index) => ({
@@ -64,6 +72,7 @@ function normalizeBlanks(blanks: QuizJsonQuestion["blanks"]): DragBlank[] {
     .filter((blank) => blank.answer.length > 0 || blank.acceptedAnswers?.length);
 }
 
+// Attempt to parse JSON-style quiz payload (the preferred format).
 function parseJsonQuiz(rawText: string): ParseResult | null {
   const cleanedText = rawText
     .replace(/^```json\s*/i, "")
@@ -230,6 +239,7 @@ function parseJsonQuiz(rawText: string): ParseResult | null {
   return { questions, errors };
 }
 
+// Fallback parser for the legacy plaintext quiz format.
 function parseLegacyQuiz(rawText: string): ParseResult {
   const errors: string[] = [];
   const questions: Question[] = [];
@@ -324,6 +334,10 @@ function parseLegacyQuiz(rawText: string): ParseResult {
   return { questions, errors };
 }
 
+/**
+ * Parse user-provided quiz text. Tries JSON first, then the legacy format.
+ * Returns a `ParseResult` with any parsing errors to show to the user.
+ */
 export function parseQuiz(rawText: string): ParseResult {
   if (!rawText?.trim()) {
     return { questions: [], errors: ["Input is empty."] };

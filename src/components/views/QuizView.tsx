@@ -1,5 +1,9 @@
 "use client";
 
+// Quiz view: composes question renderers (MCQ, Fill, DragDrop, TF), timer
+// management and AI follow-up helpers. Keep the components in this file
+// small and focused on UI behavior; business logic lives in `useAppStore`.
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { buildAIUrl } from "@/lib/aiLinks";
@@ -34,6 +38,8 @@ function buildExplainPrompt(question: Question): string {
 
 // ── MCQ OPTIONS ──────────────────────────────────────────────────────────────
 
+/** MCQ options renderer. Shows contextual feedback after a question is
+ * graded and prevents interaction when `answered` is true. */
 function MCQOptions({
   question,
   answered,
@@ -106,6 +112,8 @@ function MCQOptions({
 
 // ── FILL INPUT ────────────────────────────────────────────────────────────────
 
+/** Typed fill input renderer. Stores a draft and submits on Enter/Submit.
+ * `onDraftChange` is used to capture a draft answer for timeout handling. */
 function FillInput({
   question,
   answered,
@@ -180,6 +188,8 @@ function FillInput({
 
 // ── DRAG / DROP FILL ─────────────────────────────────────────────────────────
 
+/** Drag-and-drop style fill renderer. Supports dragging choices into blanks
+ * and submits a normalized array of answers via `onAnswer`. */
 function DragDropFill({
   question,
   answered,
@@ -326,6 +336,8 @@ function normalizeAnswer(value: string): string {
 
 // ── TRUE / FALSE ──────────────────────────────────────────────────────────────
 
+/** True/False options renderer. Mirrors MCQ feedback logic but simplified.
+ * Disables interaction when `answered` is true. */
 function TFOptions({
   question,
   answered,

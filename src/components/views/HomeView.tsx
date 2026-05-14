@@ -1,5 +1,8 @@
 "use client";
 
+// Home view: shows CTA to paste a quiz, quick access to the most recent
+// in-progress session and a concise history list. Keep UI logic lightweight.
+
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { getHistory, getInProgressSessions } from "@/lib/storage";
