@@ -3,7 +3,18 @@ import Script from "next/script";
 import { STORAGE_KEY } from "@/lib/constants";
 import "./globals.css";
 
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+function getSiteUrl() {
+  const url =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_URL ??
+    "http://localhost:3000";
+
+  return (url.startsWith("http") ? url : `https://${url}`).replace(/\/$/, "");
+}
+
+const siteUrl = getSiteUrl();
+const ogImageUrl = `${siteUrl}/opengraph-image`;
 const siteDescription =
   "Paste AI-generated quizzes, practice with instant feedback, review mistakes, and study faster with QuizCraft Plus.";
 
@@ -38,9 +49,10 @@ export const metadata: Metadata = {
     description: siteDescription,
     images: [
       {
-        url: "/opengraph-image",
+        url: ogImageUrl,
         width: 1200,
         height: 630,
+        type: "image/png",
         alt: "QuizCraft Plus - Practice AI generated quizzes",
       },
     ],
@@ -49,7 +61,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "QuizCraft Plus | Practice AI Generated Quizzes",
     description: siteDescription,
-    images: ["/opengraph-image"],
+    images: [ogImageUrl],
   },
   icons: {
     icon: [
