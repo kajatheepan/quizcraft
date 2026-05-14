@@ -10,7 +10,7 @@ import { buildAIUrl } from "@/lib/aiLinks";
 import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
 import type { AILinkSettings, AIProvider } from "@/types/quiz";
-import {Copy, Settings} from "lucide-react";
+import { Copy, Settings } from "lucide-react";
 
 type ConfirmAction =
   | { type: "next" }
@@ -892,8 +892,7 @@ export default function QuizView() {
                     }}
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
-               
-                    <Copy className="h-4 w-4 mr-2" />
+                    <Copy className="h-4 w-4" />
                     Copy prompt
                   </button>
                 </div>

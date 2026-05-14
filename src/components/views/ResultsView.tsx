@@ -8,6 +8,7 @@ import { saveHistory } from "@/lib/storage";
 import { getScoreMessage } from "@/lib/quizEngine";
 import type { Question } from "@/types/quiz";
 import type { AIProvider } from "@/types/quiz";
+import { Copy } from "lucide-react";
 
 type ReviewFilter = "all" | "review" | "correct" | "wrong" | "skipped";
 
@@ -55,10 +56,12 @@ function ReviewItem({
   question,
   index,
   onOpenProvider,
+  onCopyPrompt,
 }: {
   question: Question;
   index: number;
   onOpenProvider: (provider: AIProvider, prompt: string) => void;
+  onCopyPrompt: (prompt: string) => void;
 }) {
   const [showExplain, setShowExplain] = useState(false);
   const isSkipped = getQuestionStatus(question) === "skipped";
@@ -118,27 +121,42 @@ function ReviewItem({
                 {showExplain ? "▴ Hide explanation" : "▾ Show explanation"}
               </button>
               <div
-                className={`text-xs text-secondary leading-relaxed overflow-hidden
+                className={`overflow-hidden
                             transition-all duration-[250ms] ease-out
-                            ${showExplain ? "max-h-40 mt-1.5" : "max-h-0"}`}
+                            ${showExplain ? "max-h-56" : "max-h-0"}`}
               >
-                {question.explanation}
+                <div className="mt-3 rounded-md border border-border bg-bg px-3 py-3">
+                  <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">
+                    Explanation
+                  </p>
+                  <p className="text-sm text-primary/90 leading-relaxed">
+                    {question.explanation}
+                  </p>
+                </div>
               </div>
               {showExplain && (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => onOpenProvider("chatgpt", followUpPrompt)}
-                    className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
                     Explain in ChatGPT ↗
                   </button>
                   <button
                     type="button"
                     onClick={() => onOpenProvider("claude", followUpPrompt)}
-                    className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs text-primary hover:border-secondary transition-colors duration-[150ms]"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms]"
                   >
                     Explain in Claude ↗
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCopyPrompt(followUpPrompt)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms]"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy prompt
                   </button>
                 </div>
               )}
@@ -214,6 +232,12 @@ export default function ResultsView() {
       showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
     }
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleCopyPrompt = (prompt: string) => {
+    navigator.clipboard.writeText(prompt).then(() => {
+      showToast("Prompt copied to clipboard");
+    }).catch(() => showToast("Could not copy prompt"));
   };
 
   return (
@@ -328,7 +352,13 @@ export default function ResultsView() {
           <p className="text-sm text-secondary text-center py-6">No questions to show.</p>
         ) : (
           displayed.map((q, i) => (
-            <ReviewItem key={q.id} question={q} index={i} onOpenProvider={handleOpenProvider} />
+            <ReviewItem
+              key={q.id}
+              question={q}
+              index={i}
+              onOpenProvider={handleOpenProvider}
+              onCopyPrompt={handleCopyPrompt}
+            />
           ))
         )}
       </div>
