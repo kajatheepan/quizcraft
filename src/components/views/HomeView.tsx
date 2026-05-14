@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { getHistory, getInProgressSessions } from "@/lib/storage";
+import { clearHistory, getHistory, getInProgressSessions } from "@/lib/storage";
 import type { HistoryEntry, QuizSession } from "@/types/quiz";
 
 type HistoryListItem =
@@ -38,6 +38,13 @@ export default function HomeView() {
       return;
     }
     loadResult(entry.result);
+  };
+
+  const handleClearHistory = () => {
+    if (!window.confirm("Clear completed quiz history? Saved in-progress quizzes will stay.")) return;
+    clearHistory();
+    refreshSavedData();
+    showToast("History cleared");
   };
 
   const formatSavedTime = (value: string) =>
@@ -167,9 +174,20 @@ export default function HomeView() {
       {/* Recent sessions */}
       {historyItems.length > 0 && (
         <div>
-          <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-3">
-            History
-          </p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary">
+              History
+            </p>
+            {history.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearHistory}
+                className="rounded-sm text-xs text-secondary transition-colors duration-[150ms] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                Clear history
+              </button>
+            )}
+          </div>
           {historyItems.map((item, index) => {
             if (item.kind === "unfinished") {
               const { session } = item;

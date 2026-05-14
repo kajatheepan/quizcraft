@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { parseQuiz } from "@/lib/parser";
 import {
+  clearLastQuizText,
   getLastQuizText,
   getPreferences,
   saveLastQuizText,
@@ -109,6 +110,17 @@ export default function InputView() {
     showToast("Demo quiz loaded");
   };
 
+  const handleClearPastedQuiz = () => {
+    if (!window.confirm("Clear the pasted quiz text?")) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setRawText("");
+    setIsValid(null);
+    setStatusMsg("");
+    setQuestionCount(0);
+    clearLastQuizText();
+    showToast("Pasted quiz cleared");
+  };
+
   const borderClass =
     isValid === true ? "border-success" :
     isValid === false ? "border-error" :
@@ -137,12 +149,23 @@ export default function InputView() {
         {/* Label row */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <span className="text-sm text-secondary">Your quiz</span>
-          {isValid && questionCount > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-success" aria-live="polite">
-              <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
-              ✓ {questionCount} question{questionCount !== 1 ? "s" : ""}
-            </span>
-          )}
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+            {rawText.trim().length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearPastedQuiz}
+                className="rounded-sm text-xs text-secondary transition-colors duration-[150ms] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                Clear pasted quiz
+              </button>
+            )}
+            {isValid && questionCount > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-success" aria-live="polite">
+                <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
+                ✓ {questionCount} question{questionCount !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Textarea */}

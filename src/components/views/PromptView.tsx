@@ -6,6 +6,7 @@ import { buildPrompt } from "@/lib/quizEngine";
 import Chip from "@/components/ui/Chip";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { buildAIUrl } from "@/lib/aiLinks";
+import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings } from "@/lib/storage";
 import type { AIProvider } from "@/types/quiz";
 import { Copy } from "lucide-react";
@@ -45,18 +46,21 @@ export default function PromptView() {
     });
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(prompt).then(() => {
+  const handleCopy = async () => {
+    const copied = await copyToClipboard(prompt);
+    if (copied) {
       setCopyLabel("✓ Copied!");
       showToast("Prompt copied to clipboard");
       setTimeout(() => setCopyLabel("Copy Prompt"), 2000);
-    }).catch(() => showToast("Copy failed — select the text manually"));
+      return;
+    }
+    showToast("Copy failed. Select the text and copy manually.");
   };
 
   const openProvider = (provider: AIProvider) => {
     const { url, usedFallback } = buildAIUrl(provider, prompt, getAILinkSettings());
     if (usedFallback) {
-      showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
+      showToast(`Could not use that saved ${provider === "chatgpt" ? "ChatGPT" : "Claude"} conversation. Opened a new chat instead.`);
     }
     window.open(url, "_blank", "noopener,noreferrer");
   };

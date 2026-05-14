@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { buildAIUrl } from "@/lib/aiLinks";
+import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
 import type { AILinkSettings, AIProvider } from "@/types/quiz";
@@ -396,7 +397,7 @@ function TFOptions({
 // ── MAIN QUIZ VIEW ────────────────────────────────────────────────────────────
 
 export default function QuizView() {
-  const { state, answerQuestion, nextQuestion, finishQuiz, timeoutQuestion, setRemaining, gotoQuestion, showToast } = useAppStore();
+  const { state, answerQuestion, nextQuestion, finishQuiz, timeoutQuestion, setRemaining, gotoQuestion, navigate, showToast } = useAppStore();
   const { quiz } = state;
   const question = quiz.questions[quiz.current] ?? null;
   const [timerDisplay, setTimerDisplay] = useState("");
@@ -594,7 +595,37 @@ export default function QuizView() {
     };
   }, [pendingConfirmAction]);
 
-  if (!question) return null;
+  if (!question) {
+    return (
+      <div className="max-w-content-sm mx-auto px-4 pt-12 pb-20">
+        <section className="rounded-lg border border-border bg-surface p-5 text-center shadow-card sm:p-6">
+          <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-3">
+            Quiz unavailable
+          </p>
+          <h1 className="text-xl font-semibold text-primary">No quiz question found</h1>
+          <p className="mt-2 text-sm leading-relaxed text-secondary">
+            This can happen if old saved quiz data is incomplete. Paste a quiz to start again.
+          </p>
+          <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => navigate("home")}
+              className="rounded-md border border-border px-4 py-2 text-sm text-secondary transition-colors duration-[150ms] hover:border-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Back to home
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("input")}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity duration-[150ms] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Paste a quiz
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   const handleAnswerWrapped = (response: any) => {
     setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds)));
@@ -633,9 +664,18 @@ export default function QuizView() {
   const openProvider = (provider: AIProvider) => {
     const { url, usedFallback } = buildAIUrl(provider, followUpPrompt, aiSettings);
     if (usedFallback) {
-      showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
+      showToast(`Could not use that saved ${provider === "chatgpt" ? "ChatGPT" : "Claude"} conversation. Opened a new chat instead.`);
     }
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleCopyFollowUpPrompt = async () => {
+    const copied = await copyToClipboard(followUpPrompt);
+    if (copied) {
+      showToast("Prompt copied to clipboard");
+      return;
+    }
+    showToast("Copy failed. Select the text and copy manually.");
   };
 
   const getNavigatorButtonClass = (index: number) => {
@@ -955,10 +995,7 @@ export default function QuizView() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(followUpPrompt);
-                      showToast("Prompt copied to clipboard");
-                    }}
+                    onClick={handleCopyFollowUpPrompt}
                     data-tutorial="quiz-explain-ai"
                     className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >

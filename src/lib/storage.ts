@@ -3,12 +3,177 @@
 // and small user preferences. Keep logic minimal and defensive for SSR.
 
 import { STORAGE_KEY } from "@/lib/constants";
-import type { AILinkSettings, HistoryEntry, QuizSession, QuizSettings, StoredData, ThemeMode } from "@/types/quiz";
+import type { AILinkSettings, HistoryEntry, QuizSession, QuizSettings, QuizState, ResultData, StoredData, ThemeMode } from "@/types/quiz";
 
 const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
   chatgpt: { mode: "new", conversationRef: "" },
   claude: { mode: "new", conversationRef: "" },
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function safeString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function safeNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function sanitizePreferences(value: unknown): Partial<QuizSettings> {
+  if (!isRecord(value)) return {};
+  const next: Partial<QuizSettings> = {};
+  if (typeof value.shuffle === "boolean") next.shuffle = value.shuffle;
+  if (typeof value.shuffleOptions === "boolean") next.shuffleOptions = value.shuffleOptions;
+  if (value.explanationTiming === "after" || value.explanationTiming === "end") {
+    next.explanationTiming = value.explanationTiming;
+  }
+  if (typeof value.timer === "boolean") next.timer = value.timer;
+  if (typeof value.timerSeconds === "number" && Number.isFinite(value.timerSeconds)) {
+    next.timerSeconds = Math.min(300, Math.max(5, Math.round(value.timerSeconds)));
+  }
+  return next;
+}
+
+function sanitizeQuizSettings(value: unknown): QuizSettings {
+  const prefs = sanitizePreferences(value);
+  return {
+    shuffle: prefs.shuffle ?? true,
+    shuffleOptions: prefs.shuffleOptions ?? true,
+    explanationTiming: prefs.explanationTiming ?? "after",
+    timer: prefs.timer ?? false,
+    timerSeconds: prefs.timerSeconds ?? 30,
+  };
+}
+
+function sanitizeQuizState(value: unknown): QuizState | null {
+  if (!isRecord(value) || !Array.isArray(value.questions) || value.questions.length === 0) return null;
+  const questions = value.questions as QuizState["questions"];
+  const current = Math.min(Math.max(Math.round(safeNumber(value.current, 0)), 0), questions.length - 1);
+
+  return {
+    questions,
+    original: Array.isArray(value.original) && value.original.length > 0
+      ? value.original as QuizState["original"]
+      : questions,
+    current,
+    correct: safeNumber(value.correct),
+    wrong: safeNumber(value.wrong),
+    skipped: safeNumber(value.skipped),
+    startTime: typeof value.startTime === "number" && Number.isFinite(value.startTime) ? value.startTime : null,
+    settings: sanitizeQuizSettings(value.settings),
+    answered: typeof value.answered === "boolean" ? value.answered : false,
+  };
+}
+
+function sanitizeResult(value: unknown): ResultData | undefined {
+  if (!isRecord(value) || !Array.isArray(value.questions) || value.questions.length === 0) return undefined;
+  const total = safeNumber(value.total, value.questions.length);
+  if (total <= 0) return undefined;
+  const correct = safeNumber(value.correct);
+  const wrong = safeNumber(value.wrong);
+  const skipped = safeNumber(value.skipped);
+  const percentage = safeNumber(value.percentage, Math.round((correct / total) * 100));
+
+  return {
+    questions: value.questions as ResultData["questions"],
+    correct,
+    wrong,
+    skipped,
+    total,
+    percentage,
+  };
+}
+
+function sanitizeHistory(value: unknown): HistoryEntry[] {
+  if (!Array.isArray(value)) return [];
+  const history: HistoryEntry[] = [];
+
+  value.filter(isRecord).forEach((item) => {
+    const topic = safeString(item.topic, "Quiz");
+    const total = safeNumber(item.total, 0);
+    const score = safeNumber(item.score, 0);
+    const percentage = safeNumber(item.percentage, total > 0 ? Math.round((score / total) * 100) : 0);
+
+    if (total <= 0) return;
+
+    history.push({
+      id: typeof item.id === "string" ? item.id : undefined,
+      sessionId: typeof item.sessionId === "string" ? item.sessionId : undefined,
+      date: safeString(item.date, new Date().toLocaleDateString()),
+      completedAt: typeof item.completedAt === "string" ? item.completedAt : undefined,
+      topic,
+      score,
+      total,
+      percentage,
+      result: sanitizeResult(item.result),
+    });
+  });
+
+  return history;
+}
+
+function sanitizeSessions(value: unknown): QuizSession[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isRecord).flatMap((item) => {
+    const quiz = sanitizeQuizState(item.quiz);
+    if (!quiz) return [];
+
+    const status = item.status === "completed" ? "completed" : "in-progress";
+    const now = new Date().toISOString();
+    return [{
+      id: safeString(item.id, String(Date.now())),
+      title: safeString(item.title, "Saved quiz"),
+      createdAt: safeString(item.createdAt, now),
+      updatedAt: safeString(item.updatedAt, now),
+      completedAt: typeof item.completedAt === "string" ? item.completedAt : undefined,
+      status,
+      quiz,
+    }];
+  });
+}
+
+function sanitizeAILinks(value: unknown): Partial<AILinkSettings> {
+  if (!isRecord(value)) return {};
+  const readProvider = (provider: unknown) => {
+    if (!isRecord(provider)) return undefined;
+    return {
+      mode: provider.mode === "continue" ? "continue" as const : "new" as const,
+      conversationRef: safeString(provider.conversationRef),
+    };
+  };
+
+  return {
+    chatgpt: readProvider(value.chatgpt),
+    claude: readProvider(value.claude),
+  };
+}
+
+function sanitizeStoredData(value: unknown): StoredData {
+  if (!isRecord(value)) return {};
+
+  const sessions = sanitizeSessions(value.sessions);
+  const activeSession = isRecord(value.activeSession)
+    ? sanitizeSessions([value.activeSession])[0] ?? null
+    : null;
+
+  const next: StoredData = {
+    lastQuizText: safeString(value.lastQuizText),
+    preferences: sanitizePreferences(value.preferences),
+    tutorialSeen: value.tutorialSeen === true,
+    sessions,
+    activeSession,
+    history: sanitizeHistory(value.history),
+    aiLinks: sanitizeAILinks(value.aiLinks),
+    themeMode: value.themeMode === "light" || value.themeMode === "dark" || value.themeMode === "system"
+      ? value.themeMode
+      : undefined,
+  };
+
+  return next;
+}
 
 /**
  * Load persisted store from `localStorage`.
@@ -17,7 +182,7 @@ const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
 function load(): StoredData {
   if (typeof window === "undefined") return {};
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as StoredData;
+    const raw = sanitizeStoredData(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}"));
     const sessions = raw.sessions ?? [];
 
     // Migrate legacy single active session to multi-session storage.
@@ -51,6 +216,12 @@ function save(data: StoredData): void {
 /** Return recent completed quiz history entries (most-recent first). */
 export function getHistory(): HistoryEntry[] {
   return load().history ?? [];
+}
+
+/** Clear completed quiz history only. */
+export function clearHistory(): void {
+  const data = load();
+  save({ ...data, history: [] });
 }
 
 /** Upsert a history entry and cap history length to 10 items. */
@@ -100,6 +271,12 @@ export function clearSession(sessionId: string): void {
   save({ ...data, sessions, activeSession: null });
 }
 
+/** Clear all saved sessions. Completed history is kept. */
+export function clearAllSavedSessions(): void {
+  const data = load();
+  save({ ...data, sessions: [], activeSession: null });
+}
+
 /** Return the most-recent in-progress session or null when none exist. */
 export function getActiveSession(): QuizSession | null {
   return getInProgressSessions()[0] ?? null;
@@ -131,6 +308,12 @@ export function getLastQuizText(): string {
 export function saveLastQuizText(text: string): void {
   const data = load();
   save({ ...data, lastQuizText: text });
+}
+
+/** Clear the last pasted quiz draft. */
+export function clearLastQuizText(): void {
+  const data = load();
+  save({ ...data, lastQuizText: "" });
 }
 
 /** Stored user preferences for quiz defaults (partial). */

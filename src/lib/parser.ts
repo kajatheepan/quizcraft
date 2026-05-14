@@ -25,6 +25,10 @@ type QuizJsonQuestion = {
   explanation?: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 // Convert a loose type string into a canonical QuestionType or null when unknown.
 function normalizeType(raw: string): QuestionType | null {
   const t = raw.trim().toUpperCase();
@@ -72,31 +76,71 @@ function normalizeBlanks(blanks: QuizJsonQuestion["blanks"]): DragBlank[] {
     .filter((blank) => blank.answer.length > 0 || blank.acceptedAnswers?.length);
 }
 
-// Attempt to parse JSON-style quiz payload (the preferred format).
-function parseJsonQuiz(rawText: string): ParseResult | null {
-  const cleanedText = rawText
+function stripJsonCodeFence(rawText: string): string {
+  return rawText
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
+}
+
+function looksLikeLegacyQuiz(rawText: string): boolean {
+  return /(^|\n)\s*Q\d+\./i.test(rawText);
+}
+
+function looksLikeJson(rawText: string): boolean {
+  const cleaned = stripJsonCodeFence(rawText);
+  return cleaned.startsWith("{") || cleaned.startsWith("[");
+}
+
+function getJsonLineColumn(text: string, position: number): { line: number; column: number } {
+  const before = text.slice(0, Math.max(0, position));
+  const lines = before.split("\n");
+  return {
+    line: lines.length,
+    column: lines[lines.length - 1].length + 1,
+  };
+}
+
+function formatJsonParseError(error: unknown, text: string): string {
+  const message = error instanceof Error ? error.message : "Invalid JSON.";
+  const positionMatch = message.match(/position\s+(\d+)/i);
+  if (!positionMatch) {
+    return `JSON is invalid. Expected { "questions": [...] }. ${message}`;
+  }
+
+  const { line, column } = getJsonLineColumn(text, Number(positionMatch[1]));
+  return `JSON is invalid near line ${line}, column ${column}. Expected { "questions": [...] }.`;
+}
+
+// Attempt to parse JSON-style quiz payload (the preferred format).
+function parseJsonQuiz(rawText: string): ParseResult | null {
+  const cleanedText = stripJsonCodeFence(rawText);
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(cleanedText);
-  } catch {
-    return null;
+  } catch (error) {
+    if (looksLikeLegacyQuiz(rawText)) return null;
+    return { questions: [], errors: [formatJsonParseError(error, cleanedText)] };
   }
 
   const payload = parsed as { questions?: QuizJsonQuestion[] } | QuizJsonQuestion[];
   const sourceQuestions = Array.isArray(payload) ? payload : payload.questions;
   if (!Array.isArray(sourceQuestions)) {
-    return { questions: [], errors: ["JSON quiz must contain a questions array."] };
+    return { questions: [], errors: ['Expected { "questions": [...] } or an array of question objects.'] };
   }
 
   const errors: string[] = [];
   const questions: Question[] = [];
 
-  sourceQuestions.forEach((item, index) => {
+  sourceQuestions.forEach((rawItem, index) => {
+    if (!isRecord(rawItem)) {
+      errors.push(`Question ${index + 1}: Expected a question object.`);
+      return;
+    }
+
+    const item = rawItem as QuizJsonQuestion;
     const qNum = Number(item.id ?? index + 1);
     const questionType = item.type ? normalizeType(item.type) : null;
     const fillMode = normalizeFillMode(item.fillMode ?? item.method ?? item.interaction);
@@ -134,7 +178,7 @@ function parseJsonQuiz(rawText: string): ParseResult | null {
       const optionKeys = Object.keys(normalizedOptions);
       const normalizedAnswer = String(answerValue ?? "").trim().toUpperCase();
       if (optionKeys.length !== 4 || !["A", "B", "C", "D"].every((key) => normalizedOptions[key])) {
-        errors.push(`Q${qNum}: MCQ requires exactly A, B, C, and D options.`);
+        errors.push(`Q${qNum}: MCQ questions need options A, B, C, and D.`);
         return;
       }
       if (!normalizedOptions[normalizedAnswer]) {
@@ -349,7 +393,11 @@ export function parseQuiz(rawText: string): ParseResult {
   }
 
   const text = rawText.trim().replace(/===QUIZCRAFT FORMAT===/gi, "").replace(/===END===/gi, "").trim();
-  const jsonResult = parseJsonQuiz(text);
-  if (jsonResult) return jsonResult;
-  return parseLegacyQuiz(text);
+  if (looksLikeLegacyQuiz(text)) return parseLegacyQuiz(text);
+  if (looksLikeJson(text)) return parseJsonQuiz(text) ?? { questions: [], errors: ['Expected { "questions": [...] }.'] };
+
+  return {
+    questions: [],
+    errors: ['Paste valid JSON like { "questions": [...] }, or use the legacy format starting with Q1.'],
+  };
 }

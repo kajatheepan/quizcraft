@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { buildAIUrl } from "@/lib/aiLinks";
+import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings } from "@/lib/storage";
 import { saveHistory } from "@/lib/storage";
 import { getScoreMessage } from "@/lib/quizEngine";
@@ -204,7 +205,37 @@ export default function ResultsView() {
     return () => clearTimeout(t);
   }, [result, quiz.startTime]);
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className="max-w-content-sm mx-auto px-4 pt-12 pb-20">
+        <section className="rounded-lg border border-border bg-surface p-5 text-center shadow-card sm:p-6">
+          <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-3">
+            Results unavailable
+          </p>
+          <h1 className="text-xl font-semibold text-primary">No quiz result found</h1>
+          <p className="mt-2 text-sm leading-relaxed text-secondary">
+            This can happen after old saved data is cleared or refreshed. Paste a quiz to start a new practice session.
+          </p>
+          <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => navigate("home")}
+              className="rounded-md border border-border px-4 py-2 text-sm text-secondary transition-colors duration-[150ms] hover:border-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Back to home
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("input")}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity duration-[150ms] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Paste a quiz
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   const { correct, wrong, skipped, total, percentage, questions } = result;
   const correctPct = (correct / total) * 100;
@@ -223,25 +254,31 @@ export default function ResultsView() {
         ? questions.filter((q) => getQuestionStatus(q) === "skipped")
         : questions;
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const text = `I scored ${percentage}% on a quiz! (${correct}/${total} correct) — QuizCraft Plus`;
-    navigator.clipboard.writeText(text).then(() => {
+    const copied = await copyToClipboard(text);
+    if (copied) {
       showToast("Copied to clipboard!");
-    }).catch(() => showToast("Could not copy"));
+      return;
+    }
+    showToast("Copy failed. Select the text and copy manually.");
   };
 
   const handleOpenProvider = (provider: AIProvider, prompt: string) => {
     const { url, usedFallback } = buildAIUrl(provider, prompt, getAILinkSettings());
     if (usedFallback) {
-      showToast(`Invalid ${provider === "chatgpt" ? "ChatGPT" : "Claude"} chat reference. Opened a new chat.`);
+      showToast(`Could not use that saved ${provider === "chatgpt" ? "ChatGPT" : "Claude"} conversation. Opened a new chat instead.`);
     }
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const handleCopyPrompt = (prompt: string) => {
-    navigator.clipboard.writeText(prompt).then(() => {
+  const handleCopyPrompt = async (prompt: string) => {
+    const copied = await copyToClipboard(prompt);
+    if (copied) {
       showToast("Prompt copied to clipboard");
-    }).catch(() => showToast("Could not copy prompt"));
+      return;
+    }
+    showToast("Copy failed. Select the text and copy manually.");
   };
 
   return (
