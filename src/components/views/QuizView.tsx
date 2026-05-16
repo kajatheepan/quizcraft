@@ -153,6 +153,7 @@ function FillInput({
     onAnswer(value.trim());
   };
 
+  const hasTypedAnswer = Boolean(value.trim());
   const isCorrect = answered && question.isCorrect === true;
   const isWrong = answered && question.isCorrect === false;
 
@@ -179,9 +180,14 @@ function FillInput({
           <button
             type="button"
             onClick={submit}
-            className="border border-border text-primary text-sm px-3.5 py-1.5 rounded-md
-                       hover:border-secondary transition-colors duration-[150ms]
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            disabled={!hasTypedAnswer}
+            className={[
+              "border border-border text-sm px-3.5 py-1.5 rounded-md transition-colors duration-[150ms]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              hasTypedAnswer
+                ? "text-primary hover:border-secondary"
+                : "text-secondary opacity-50 cursor-not-allowed",
+            ].join(" ")}
           >
             Submit
           </button>
@@ -287,6 +293,7 @@ function DragDropFill({
 
   const choices = question.choices ?? [];
   const showFeedback = answered && question.isCorrect !== null && !skipped;
+  const allBlanksFilled = blanks.length > 0 && blanks.every((blank) => (placements[blank.id] ?? "").trim());
 
   return (
     <div>
@@ -301,8 +308,10 @@ function DragDropFill({
             disabled={answered}
             onDragStart={(event) => event.dataTransfer.setData("text/plain", choice)}
             className={[
-              "px-3 py-2 rounded-full border text-sm transition-colors duration-[150ms]",
-              answered ? "border-border text-secondary" : "border-border text-primary hover:border-accent cursor-grab active:cursor-grabbing",
+              "px-3 py-2 rounded-full border text-sm transition-all duration-[150ms]",
+              answered
+                ? "border-border text-secondary"
+                : "border-border bg-surface text-primary shadow-card cursor-grab hover:-translate-y-0.5 hover:border-accent hover:shadow-md active:translate-y-0 active:shadow-sm active:cursor-grabbing",
             ].join(" ")}
           >
             {choice}
@@ -315,11 +324,16 @@ function DragDropFill({
           <button
             type="button"
             onClick={handleSubmit}
-            className="border border-border text-primary text-sm px-3.5 py-1.5 rounded-md
-                       hover:border-secondary transition-colors duration-[150ms]
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            disabled={!allBlanksFilled}
+            className={[
+              "border border-border text-sm px-3.5 py-1.5 rounded-md transition-colors duration-[150ms]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              allBlanksFilled
+                ? "text-primary hover:border-secondary"
+                : "text-secondary opacity-50 cursor-not-allowed",
+            ].join(" ")}
           >
-            Submit
+            Check answer
           </button>
         </div>
       )}
@@ -885,7 +899,9 @@ export default function QuizView() {
           </div>
 
           <div key={question.id} className="px-4 py-5 animate-fade-in sm:px-7 sm:py-8">
-            <p className="text-base font-medium text-primary leading-relaxed mb-5 sm:text-md sm:mb-7">{question.question}</p>
+            {question.fillMode !== "dragdrop" && (
+              <p className="text-base font-medium text-primary leading-relaxed mb-5 sm:text-md sm:mb-7">{question.question}</p>
+            )}
 
             {question.status === "skipped" && <p className="text-sm text-secondary mb-4">Skipped</p>}
 

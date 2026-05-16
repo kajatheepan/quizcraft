@@ -123,46 +123,42 @@ const ReviewItem = memo(function ReviewItem({
               >
                 {showExplain ? "▴ Hide explanation" : "▾ Show explanation"}
               </button>
-              <div
-                className={`overflow-hidden
-                            transition-all duration-[250ms] ease-out
-                            ${showExplain ? "max-h-56" : "max-h-0"}`}
-              >
-                <div className="mt-3 rounded-md border border-border bg-bg px-3 py-3">
-                  <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">
-                    Explanation
-                  </p>
-                  <MarkdownRenderer content={question.explanation} className="text-sm leading-relaxed" />
-                </div>
-              </div>
               {showExplain && (
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => onOpenProvider("chatgpt", followUpPrompt)}
-                    data-tutorial="results-explain-ai"
-                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    Explain in ChatGPT ↗
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onOpenProvider("claude", followUpPrompt)}
-                    data-tutorial="results-explain-ai"
-                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    Explain in Claude ↗
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onCopyPrompt(followUpPrompt)}
-                    data-tutorial="results-explain-ai"
-                    className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                    Copy prompt
-                  </button>
-                </div>
+                <>
+                  <div className="mt-3 rounded-md border border-border bg-bg px-3 py-3 animate-fade-in">
+                    <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">
+                      Explanation
+                    </p>
+                    <MarkdownRenderer content={question.explanation} className="text-sm leading-relaxed" />
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => onOpenProvider("chatgpt", followUpPrompt)}
+                      data-tutorial="results-explain-ai"
+                      className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      Explain in ChatGPT ↗
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenProvider("claude", followUpPrompt)}
+                      data-tutorial="results-explain-ai"
+                      className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      Explain in Claude ↗
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onCopyPrompt(followUpPrompt)}
+                      data-tutorial="results-explain-ai"
+                      className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs text-secondary hover:text-primary hover:border-secondary transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                      Copy prompt
+                    </button>
+                  </div>
+                </>
               )}
             </>
           )}
