@@ -7,6 +7,7 @@ export type FillMode = "typed" | "dragdrop";
 export type QuestionStatus = "unseen" | "answered" | "skipped";
 export type ThemeMode = "system" | "light" | "dark";
 export type ExplanationStyle = "short" | "full";
+export type PromptMode = "guided" | "format";
 
 export interface DragBlank {
   id: string;

@@ -8,7 +8,7 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings } from "@/lib/storage";
-import type { AIProvider, ExplanationStyle } from "@/types/quiz";
+import type { AIProvider, ExplanationStyle, PromptMode } from "@/types/quiz";
 import { Copy } from "lucide-react";
 
 const ALL_TYPES = ["MCQ", "FILL", "TF"] as const;
@@ -17,6 +17,18 @@ const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard", "Mixed"].map((v) => ({ lab
 const EXPLANATION_OPTIONS = [
   { label: "Short", value: "short" },
   { label: "Full Markdown", value: "full" },
+];
+const PROMPT_MODES: Array<{ label: string; value: PromptMode; description: string }> = [
+  {
+    label: "Guided prompt",
+    value: "guided",
+    description: "Full AI instruction for source-based, university-level questions.",
+  },
+  {
+    label: "Format only",
+    value: "format",
+    description: "Only the QuizCraft JSON contract for your own custom prompt.",
+  },
 ];
 
 export default function PromptView() {
@@ -27,13 +39,14 @@ export default function PromptView() {
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(["MCQ", "FILL", "TF"]));
   const [difficulty, setDifficulty] = useState("Medium");
   const [explanationStyle, setExplanationStyle] = useState<ExplanationStyle>("short");
+  const [promptMode, setPromptMode] = useState<PromptMode>("guided");
   const [focus, setFocus] = useState("");
   const [copyLabel, setCopyLabel] = useState("Copy Prompt");
 
   const prompt = useMemo(
-    () => buildPrompt(subject, count, activeTypes, difficulty, focus, explanationStyle),
+    () => buildPrompt(subject, count, activeTypes, difficulty, focus, explanationStyle, promptMode),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [subject, count, activeTypes, difficulty, focus, explanationStyle]
+    [subject, count, activeTypes, difficulty, focus, explanationStyle, promptMode]
   );
 
   // Slider pill position
@@ -99,53 +112,86 @@ export default function PromptView() {
 
           {/* Subject */}
           <div className="mb-6">
-            <label htmlFor="prompt-subject" className="block text-sm text-secondary mb-2">
-              Subject / Topic
-            </label>
-            <input
-              id="prompt-subject"
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Data Link Layer"
-              className="w-full h-10 bg-surface border border-border rounded-md px-3 text-sm text-primary
-                         placeholder:text-secondary transition-colors duration-[150ms]
-                         focus:outline-none focus:border-accent"
-            />
-          </div>
-
-          {/* Count slider */}
-          <div className="mb-6">
-            <label className="block text-sm text-secondary mb-2">Number of questions</label>
-            <div className="relative pt-7">
-              {/* Floating pill */}
-              <div
-                className="absolute top-0 border border-accent/30 bg-accent/10 text-primary text-xs px-2 py-0.5 rounded-full
-                           whitespace-nowrap pointer-events-none -translate-x-1/2"
-                style={{ left: `calc(${sliderPct}% + ${8 - sliderPct * 0.16}px)` }}
-              >
-                {count} questions
-              </div>
-              <input
-                type="range"
-                min={5}
-                max={50}
-                value={count}
-                onChange={(e) => setCount(parseInt(e.target.value))}
-                aria-label="Number of questions"
-                className="w-full h-[3px] bg-border rounded-full appearance-none outline-none
-                           [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4
-                           [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full
-                           [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer
-                           [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4
-                           [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent
-                           [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-              />
-              <div className="flex justify-between text-xs text-secondary mt-1.5">
-                <span>5</span><span>50</span>
-              </div>
+            <label className="block text-sm text-secondary mb-2">Prompt type</label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="tablist" aria-label="Prompt type">
+              {PROMPT_MODES.map((mode) => {
+                const active = promptMode === mode.value;
+                return (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setPromptMode(mode.value)}
+                    className={[
+                      "rounded-lg border px-3 py-3 text-left transition-colors duration-[150ms]",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      active
+                        ? "border-accent bg-accent/10 text-primary"
+                        : "border-border bg-surface text-secondary hover:border-secondary hover:text-primary",
+                    ].join(" ")}
+                  >
+                    <span className="block text-sm font-medium">{mode.label}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-secondary">{mode.description}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {/* Subject */}
+          {promptMode === "guided" && (
+            <div className="mb-6">
+              <label htmlFor="prompt-subject" className="block text-sm text-secondary mb-2">
+                Subject / Topic
+              </label>
+              <input
+                id="prompt-subject"
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="e.g. Data Link Layer"
+                className="w-full h-10 bg-surface border border-border rounded-md px-3 text-sm text-primary
+                           placeholder:text-secondary transition-colors duration-[150ms]
+                           focus:outline-none focus:border-accent"
+              />
+            </div>
+          )}
+
+          {/* Count slider */}
+          {promptMode === "guided" && (
+            <div className="mb-6">
+              <label className="block text-sm text-secondary mb-2">Number of questions</label>
+              <div className="relative pt-7">
+                {/* Floating pill */}
+                <div
+                  className="absolute top-0 border border-accent/30 bg-accent/10 text-primary text-xs px-2 py-0.5 rounded-full
+                             whitespace-nowrap pointer-events-none -translate-x-1/2"
+                  style={{ left: `calc(${sliderPct}% + ${8 - sliderPct * 0.16}px)` }}
+                >
+                  {count} questions
+                </div>
+                <input
+                  type="range"
+                  min={5}
+                  max={50}
+                  value={count}
+                  onChange={(e) => setCount(parseInt(e.target.value))}
+                  aria-label="Number of questions"
+                  className="w-full h-[3px] bg-border rounded-full appearance-none outline-none
+                             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4
+                             [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full
+                             [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer
+                             [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4
+                             [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent
+                             [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-secondary mt-1.5">
+                  <span>5</span><span>50</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Question types */}
           <div className="mb-6">
@@ -163,15 +209,17 @@ export default function PromptView() {
           </div>
 
           {/* Difficulty */}
-          <div className="mb-6">
-            <label className="block text-sm text-secondary mb-2">Difficulty</label>
-            <SegmentedControl
-              ariaLabel="Difficulty level"
-              options={DIFFICULTY_OPTIONS}
-              value={difficulty}
-              onChange={setDifficulty}
-            />
-          </div>
+          {promptMode === "guided" && (
+            <div className="mb-6">
+              <label className="block text-sm text-secondary mb-2">Difficulty</label>
+              <SegmentedControl
+                ariaLabel="Difficulty level"
+                options={DIFFICULTY_OPTIONS}
+                value={difficulty}
+                onChange={setDifficulty}
+              />
+            </div>
+          )}
 
           {/* Explanation detail */}
           <div className="mb-6">
@@ -188,22 +236,24 @@ export default function PromptView() {
           </div>
 
           {/* Focus area */}
-          <div className="mb-6">
-            <label htmlFor="prompt-focus" className="block text-sm text-secondary mb-2">
-              Focus area{" "}
-              <span className="text-secondary opacity-60">(optional)</span>
-            </label>
-            <textarea
-              id="prompt-focus"
-              value={focus}
-              onChange={(e) => setFocus(e.target.value)}
-              placeholder="Specific topics to emphasize..."
-              rows={3}
-              className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-primary
-                         placeholder:text-secondary resize-none transition-colors duration-[150ms]
-                         focus:outline-none focus:border-accent"
-            />
-          </div>
+          {promptMode === "guided" && (
+            <div className="mb-6">
+              <label htmlFor="prompt-focus" className="block text-sm text-secondary mb-2">
+                Focus area{" "}
+                <span className="text-secondary opacity-60">(optional)</span>
+              </label>
+              <textarea
+                id="prompt-focus"
+                value={focus}
+                onChange={(e) => setFocus(e.target.value)}
+                placeholder="Specific topics to emphasize..."
+                rows={3}
+                className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-primary
+                           placeholder:text-secondary resize-none transition-colors duration-[150ms]
+                           focus:outline-none focus:border-accent"
+              />
+            </div>
+          )}
         </div>
 
         {/* RIGHT: Preview */}
@@ -253,21 +303,21 @@ export default function PromptView() {
               Open Claude ↗
             </button>
           </div>
-        </div>
 
-        <div className="rounded-lg border border-border bg-surface/60 p-4 shadow-card md:col-span-2 sm:p-5">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary text-center">
-              Copy the prompt, generate quiz in AI, then paste the result back into QuizCraft.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("input")}
-              data-tutorial="prompt-paste-quiz"
-              className="text-sm font-medium text-accent transition-opacity duration-[150ms] hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-            >
-              Paste my quiz →
-            </button>
+          <div className="mt-6 rounded-lg border border-border bg-surface/60 p-4 shadow-card sm:p-5">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary text-center">
+                Copy the prompt, generate quiz in AI, then paste the result back into QuizCraft.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("input")}
+                data-tutorial="prompt-paste-quiz"
+                className="text-sm font-medium text-accent transition-opacity duration-[150ms] hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                Paste my quiz →
+              </button>
+            </div>
           </div>
         </div>
       </div>

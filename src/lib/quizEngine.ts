@@ -2,7 +2,7 @@
 // Utility helpers to prepare quizzes, shuffle options, check answers and build
 // result payloads. Keep pure functions here for easy unit testing.
 
-import type { ExplanationStyle, Question, QuizSettings, ResultData } from "@/types/quiz";
+import type { ExplanationStyle, PromptMode, Question, QuizSettings, ResultData } from "@/types/quiz";
 
 /** Return a new array with elements shuffled using Fisher–Yates. */
 export function fisherYates<T>(arr: T[]): T[] {
@@ -132,7 +132,8 @@ export function buildPrompt(
   types: Set<string>,
   difficulty: string,
   focus: string,
-  explanationStyle: ExplanationStyle = "short"
+  explanationStyle: ExplanationStyle = "short",
+  promptMode: PromptMode = "guided"
 ): string {
   const subjectStr = subject.trim() || "[YOUR TOPIC]";
   const typeList = Array.from(types).join(", ") || "MCQ";
@@ -149,12 +150,31 @@ export function buildPrompt(
     ? "### Why this is correct\\nExplain the concept in clear paragraphs. Use bullets, tables, or diagrams only if they make this specific explanation clearer."
     : "Short explanation";
 
-  return `You are a quiz generator. Return ONLY valid JSON. Do not wrap the response in markdown.
+  const formatIntro = promptMode === "format"
+    ? `Use this QuizCraft JSON format for your quiz output. Return ONLY valid JSON. Do not wrap the response in markdown.
+
+You can write your own quiz instructions above this format in ChatGPT or Claude. The final answer must still follow this exact JSON contract.`
+    : `You are an expert university-level quiz designer. Return ONLY valid JSON. Do not wrap the response in markdown.
 
 Generate ${count} quiz questions about "${subjectStr}".
 Question types allowed: ${typeList}.
 Difficulty: ${difficulty}.${focusLine}
 Explanation detail: ${explanationStyle === "full" ? "Full Markdown" : "Short"}.
+
+Source policy:
+- First use the uploaded files, lecture slides, PDFs, notes, or project/chat knowledge available in this conversation.
+- If sources are available, base the questions on those sources instead of generic internet-style knowledge.
+- If the sources do not contain enough material, still generate useful questions from the topic, but do not invent fake slide names, page numbers, or unsupported facts.
+
+Question quality policy:
+- Write questions for university students, not school-level memorization.
+- Prefer concept application, comparison, cause/effect, troubleshooting, scenario analysis, and common misconception testing.
+- Avoid silly word-play, obvious definition-only questions, and questions that can be answered by matching one highlighted word from the notes.
+- Make distractors plausible and based on real confusions students make.
+- Include a balanced mix of difficulty. Most questions should require thinking, not just recall.
+- Do not ask vague questions like "Which is correct?" unless every option is precise and meaningful.`;
+
+  return `${formatIntro}
 
 Use this exact JSON shape:
 {

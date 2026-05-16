@@ -84,4 +84,13 @@ describe("buildPrompt", () => {
     expect(prompt).toContain("Markdown tables");
     expect(prompt).toContain("Do not use raw HTML, SVG, or external images.");
   });
+
+  it("can generate a format-only prompt for custom instructions", () => {
+    const prompt = buildPrompt("Data Link Layer", 5, new Set(["MCQ"]), "Medium", "", "short", "format");
+
+    expect(prompt).toContain("Use this QuizCraft JSON format");
+    expect(prompt).toContain("You can write your own quiz instructions above this format");
+    expect(prompt).toContain('"questions": [');
+    expect(prompt).not.toContain("Question quality policy");
+  });
 });
