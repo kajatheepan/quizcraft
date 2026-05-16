@@ -2,6 +2,7 @@
   "name": "quizcraft-ai",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=true next dev",
     "build": "next build",
