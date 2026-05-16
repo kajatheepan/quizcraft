@@ -344,7 +344,7 @@ export default function InputView() {
                     disabled={config.mode === "new"}
                     value={config.conversationRef}
                     onChange={(e) => updateProviderSettings(provider, { conversationRef: e.target.value })}
-                    placeholder={config.mode === "new" ? "Select 'Continue chat' to paste URL" : "Paste chat URL or ID"}
+                    placeholder={config.mode === "new" ? "Select 'Continue chat' to paste URL" : "Paste chat URL, shared URL, or ID"}
                     className={`w-full h-9 rounded-md px-3 text-sm transition-colors duration-[150ms]
                                focus:outline-none
                                ${

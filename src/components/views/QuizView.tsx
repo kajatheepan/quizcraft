@@ -969,7 +969,7 @@ export default function QuizView() {
                             disabled={config.mode === "new"}
                             value={config.conversationRef}
                             onChange={(event) => updateProviderSettings(provider, { conversationRef: event.target.value })}
-                            placeholder={config.mode === "new" ? "Select continue to paste URL" : "Paste chat URL or ID"}
+                            placeholder={config.mode === "new" ? "Select continue to paste URL" : "Paste chat URL, shared URL, or ID"}
                             className={`w-full h-9 rounded-md px-3 text-sm transition-colors duration-[150ms] focus:outline-none ${
                               config.mode === "new"
                                 ? "bg-surface border border-border text-secondary placeholder:text-secondary/50 cursor-not-allowed opacity-50"

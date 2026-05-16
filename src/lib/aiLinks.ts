@@ -5,25 +5,43 @@ export interface BuiltAIUrl {
   usedFallback: boolean;
 }
 
-function normalizeConversationId(provider: AIProvider, rawRef: string): string | null {
+interface NormalizedConversationRef {
+  path: string;
+}
+
+function isPlainRef(value: string): boolean {
+  return !value.includes("/") && !value.includes("?");
+}
+
+function isChatGPTHost(hostname: string): boolean {
+  return hostname === "chatgpt.com" || hostname === "www.chatgpt.com";
+}
+
+function normalizeChatGPTRef(rawRef: string): NormalizedConversationRef | null {
   const value = rawRef.trim();
   if (!value) return null;
 
-  // Accept plain IDs directly.
-  if (!value.includes("/") && !value.includes("?")) return value;
+  if (isPlainRef(value)) return { path: `/c/${encodeURIComponent(value)}` };
 
   try {
     const parsed = new URL(value);
-    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (!isChatGPTHost(parsed.hostname)) return null;
 
-    if (provider === "chatgpt") {
-      const cIndex = parts.findIndex((part) => part === "c");
-      if (cIndex >= 0 && parts[cIndex + 1]) return parts[cIndex + 1];
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const cIndex = parts.findIndex((part) => part === "c");
+
+    if (parts[0] === "share" && parts[1]) {
+      return { path: `/c/${encodeURIComponent(parts[1])}` };
     }
 
-    if (provider === "claude") {
-      const chatIndex = parts.findIndex((part) => part === "chat");
-      if (chatIndex >= 0 && parts[chatIndex + 1]) return parts[chatIndex + 1];
+    if (parts[0] === "g" && parts[1] && cIndex >= 0 && parts[cIndex + 1]) {
+      return {
+        path: `/g/${encodeURIComponent(parts[1])}/c/${encodeURIComponent(parts[cIndex + 1])}`,
+      };
+    }
+
+    if (cIndex >= 0 && parts[cIndex + 1]) {
+      return { path: `/c/${encodeURIComponent(parts[cIndex + 1])}` };
     }
   } catch {
     return null;
@@ -32,14 +50,41 @@ function normalizeConversationId(provider: AIProvider, rawRef: string): string |
   return null;
 }
 
+function normalizeClaudeRef(rawRef: string): NormalizedConversationRef | null {
+  const value = rawRef.trim();
+  if (!value) return null;
+
+  // Accept plain IDs directly.
+  if (isPlainRef(value)) return { path: `/chat/${encodeURIComponent(value)}` };
+
+  try {
+    const parsed = new URL(value);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+
+    const chatIndex = parts.findIndex((part) => part === "chat");
+    if (chatIndex >= 0 && parts[chatIndex + 1]) {
+      return { path: `/chat/${encodeURIComponent(parts[chatIndex + 1])}` };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function normalizeConversationRef(provider: AIProvider, rawRef: string): NormalizedConversationRef | null {
+  if (provider === "chatgpt") return normalizeChatGPTRef(rawRef);
+  return normalizeClaudeRef(rawRef);
+}
+
 function buildNewChatUrl(provider: AIProvider, encodedPrompt: string): string {
   if (provider === "chatgpt") return `https://chatgpt.com/?prompt=${encodedPrompt}`;
   return `https://claude.ai/?prompt=${encodedPrompt}`;
 }
 
-function buildContinueUrl(provider: AIProvider, conversationId: string, encodedPrompt: string): string {
-  if (provider === "chatgpt") return `https://chatgpt.com/c/${conversationId}?prompt=${encodedPrompt}`;
-  return `https://claude.ai/chat/${conversationId}?prompt=${encodedPrompt}`;
+function buildContinueUrl(provider: AIProvider, conversationRef: NormalizedConversationRef, encodedPrompt: string): string {
+  const base = provider === "chatgpt" ? "https://chatgpt.com" : "https://claude.ai";
+  return `${base}${conversationRef.path}?prompt=${encodedPrompt}`;
 }
 
 export function buildAIUrl(
@@ -54,13 +99,13 @@ export function buildAIUrl(
     return { url: buildNewChatUrl(provider, encodedPrompt), usedFallback: false };
   }
 
-  const conversationId = normalizeConversationId(provider, providerConfig.conversationRef);
-  if (!conversationId) {
+  const conversationRef = normalizeConversationRef(provider, providerConfig.conversationRef);
+  if (!conversationRef) {
     return { url: buildNewChatUrl(provider, encodedPrompt), usedFallback: true };
   }
 
   return {
-    url: buildContinueUrl(provider, conversationId, encodedPrompt),
+    url: buildContinueUrl(provider, conversationRef, encodedPrompt),
     usedFallback: false,
   };
 }
