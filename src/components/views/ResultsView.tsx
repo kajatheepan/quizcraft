@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings } from "@/lib/storage";
@@ -131,9 +132,7 @@ const ReviewItem = memo(function ReviewItem({
                   <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">
                     Explanation
                   </p>
-                  <p className="text-sm text-primary/90 leading-relaxed">
-                    {question.explanation}
-                  </p>
+                  <MarkdownRenderer content={question.explanation} className="text-sm leading-relaxed" />
                 </div>
               </div>
               {showExplain && (

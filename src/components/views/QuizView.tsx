@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
@@ -907,7 +908,7 @@ export default function QuizView() {
             <div className="border-t border-border px-4 py-5 animate-fade-in sm:px-7" aria-live="polite">
               <div>
                 <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary mb-2">Explanation</p>
-                <p className="text-base text-primary leading-[1.7]">{question.explanation}</p>
+                <MarkdownRenderer content={question.explanation} className="text-base leading-[1.7]" />
               </div>
 
               <div className="mt-5 rounded-md border border-border bg-bg p-4">

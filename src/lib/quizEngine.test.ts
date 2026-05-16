@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkAnswer } from "@/lib/quizEngine";
+import { buildPrompt, checkAnswer } from "@/lib/quizEngine";
 import type { Question } from "@/types/quiz";
 
 const baseQuestion: Question = {
@@ -66,5 +66,22 @@ describe("checkAnswer", () => {
 
     expect(checkAnswer(question, ["heart", "artery"])).toBe(true);
     expect(checkAnswer(question, ["artery", "heart"])).toBe(false);
+  });
+});
+
+describe("buildPrompt", () => {
+  it("uses short plain-text explanations by default", () => {
+    const prompt = buildPrompt("Data Link Layer", 5, new Set(["MCQ"]), "Medium", "");
+
+    expect(prompt).toContain("Explanation detail: Short.");
+    expect(prompt).toContain("Explanations must be short plain text");
+  });
+
+  it("can request full Markdown explanations", () => {
+    const prompt = buildPrompt("Data Link Layer", 5, new Set(["MCQ"]), "Medium", "", "full");
+
+    expect(prompt).toContain("Explanation detail: Full Markdown.");
+    expect(prompt).toContain("Markdown tables");
+    expect(prompt).toContain("Do not use raw HTML, SVG, or external images.");
   });
 });

@@ -2,7 +2,7 @@
 // Utility helpers to prepare quizzes, shuffle options, check answers and build
 // result payloads. Keep pure functions here for easy unit testing.
 
-import type { Question, QuizSettings, ResultData } from "@/types/quiz";
+import type { ExplanationStyle, Question, QuizSettings, ResultData } from "@/types/quiz";
 
 /** Return a new array with elements shuffled using Fisher–Yates. */
 export function fisherYates<T>(arr: T[]): T[] {
@@ -131,17 +131,30 @@ export function buildPrompt(
   count: number,
   types: Set<string>,
   difficulty: string,
-  focus: string
+  focus: string,
+  explanationStyle: ExplanationStyle = "short"
 ): string {
   const subjectStr = subject.trim() || "[YOUR TOPIC]";
   const typeList = Array.from(types).join(", ") || "MCQ";
   const focusLine = focus.trim() ? `\nFocus areas: ${focus.trim()}` : "";
+  const explanationRule = explanationStyle === "full"
+    ? `- Explanations must be detailed Markdown inside the JSON string.
+- Prefer clear paragraphs and short bullet/numbered lists for most explanations.
+- Use Markdown tables only when comparing multiple items, categories, steps, or differences. Do not include a table when a normal explanation is clearer.
+- Use fenced code blocks or text-based diagrams only when they genuinely help explain structure, flow, syntax, or process. Do not add diagrams to every answer.
+- Do not use raw HTML, SVG, or external images.
+- Escape newlines correctly so the response remains valid JSON.`
+    : "- Explanations must be short plain text: one or two sentences only.";
+  const explanationExample = explanationStyle === "full"
+    ? "### Why this is correct\\nExplain the concept in clear paragraphs. Use bullets, tables, or diagrams only if they make this specific explanation clearer."
+    : "Short explanation";
 
   return `You are a quiz generator. Return ONLY valid JSON. Do not wrap the response in markdown.
 
 Generate ${count} quiz questions about "${subjectStr}".
 Question types allowed: ${typeList}.
 Difficulty: ${difficulty}.${focusLine}
+Explanation detail: ${explanationStyle === "full" ? "Full Markdown" : "Short"}.
 
 Use this exact JSON shape:
 {
@@ -152,7 +165,7 @@ Use this exact JSON shape:
       "question": "Question text",
       "options": { "A": "...", "B": "...", "C": "...", "D": "..." },
       "answer": "B",
-      "explanation": "Short explanation"
+      "explanation": "${explanationExample}"
     },
     {
       "id": 2,
@@ -161,7 +174,7 @@ Use this exact JSON shape:
       "question": "The MAC address is ___ bits long.",
       "answer": "48",
       "acceptedAnswers": ["48", "forty eight", "forty-eight"],
-      "explanation": "Short explanation"
+      "explanation": "${explanationExample}"
     },
     {
       "id": 3,
@@ -173,14 +186,14 @@ Use this exact JSON shape:
         { "id": "2", "answer": "artery", "acceptedAnswers": ["artery", "arteries"] }
       ],
       "choices": ["heart", "artery", "vein"],
-      "explanation": "Short explanation"
+      "explanation": "${explanationExample}"
     },
     {
       "id": 4,
       "type": "TF",
       "question": "True or false question",
       "answer": "TRUE",
-      "explanation": "Short explanation"
+      "explanation": "${explanationExample}"
     }
   ]
 }
@@ -192,5 +205,6 @@ Rules:
 - For typed fill answers, include acceptedAnswers when multiple phrasings should count as correct.
 - For dragdrop fill questions, use [[1]], [[2]], etc. inside the question text and provide matching blanks and choices.
 - TF answers must be exactly TRUE or FALSE.
+${explanationRule}
 - Number questions sequentially from 1 to ${count}.`;
 }

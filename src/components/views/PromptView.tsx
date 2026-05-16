@@ -8,12 +8,16 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings } from "@/lib/storage";
-import type { AIProvider } from "@/types/quiz";
+import type { AIProvider, ExplanationStyle } from "@/types/quiz";
 import { Copy } from "lucide-react";
 
 const ALL_TYPES = ["MCQ", "FILL", "TF"] as const;
 const TYPE_LABELS: Record<string, string> = { MCQ: "MCQ", FILL: "Fill in Blank", TF: "True/False" };
 const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard", "Mixed"].map((v) => ({ label: v, value: v }));
+const EXPLANATION_OPTIONS = [
+  { label: "Short", value: "short" },
+  { label: "Full Markdown", value: "full" },
+];
 
 export default function PromptView() {
   const { navigateBack, navigate, showToast } = useAppStore();
@@ -22,13 +26,14 @@ export default function PromptView() {
   const [count, setCount] = useState(20);
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(["MCQ", "FILL", "TF"]));
   const [difficulty, setDifficulty] = useState("Medium");
+  const [explanationStyle, setExplanationStyle] = useState<ExplanationStyle>("short");
   const [focus, setFocus] = useState("");
   const [copyLabel, setCopyLabel] = useState("Copy Prompt");
 
   const prompt = useMemo(
-    () => buildPrompt(subject, count, activeTypes, difficulty, focus),
+    () => buildPrompt(subject, count, activeTypes, difficulty, focus, explanationStyle),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [subject, count, activeTypes, difficulty, focus]
+    [subject, count, activeTypes, difficulty, focus, explanationStyle]
   );
 
   // Slider pill position
@@ -166,6 +171,20 @@ export default function PromptView() {
               value={difficulty}
               onChange={setDifficulty}
             />
+          </div>
+
+          {/* Explanation detail */}
+          <div className="mb-6">
+            <label className="block text-sm text-secondary mb-2">Explanation detail</label>
+            <SegmentedControl
+              ariaLabel="Explanation detail"
+              options={EXPLANATION_OPTIONS}
+              value={explanationStyle}
+              onChange={(value) => setExplanationStyle(value as ExplanationStyle)}
+            />
+            <p className="mt-2 text-xs leading-relaxed text-secondary">
+              Short is best for quick practice. Full Markdown is better for deep review with tables, steps, and examples.
+            </p>
           </div>
 
           {/* Focus area */}
