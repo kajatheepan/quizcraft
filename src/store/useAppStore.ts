@@ -111,9 +111,18 @@ function markQuestionSkipped(question: Question): Question {
   };
 }
 
+function hasUsableResponse(response: string | string[] | null | undefined): response is string | string[] {
+  if (Array.isArray(response)) {
+    return response.some((answer) => answer.trim().length > 0);
+  }
+  return typeof response === "string" && response.trim().length > 0;
+}
+
 function markCurrentSkippedIfNeeded(quiz: QuizState): QuizState {
   const currentQuestion = quiz.questions[quiz.current];
-  if (!currentQuestion || currentQuestion.status === "answered") return withDerivedStats(quiz);
+  if (!currentQuestion || currentQuestion.status === "answered" || currentQuestion.status === "timedOut") {
+    return withDerivedStats(quiz);
+  }
 
   const questions = [...quiz.questions];
   questions[quiz.current] = markQuestionSkipped(currentQuestion);
@@ -122,7 +131,7 @@ function markCurrentSkippedIfNeeded(quiz: QuizState): QuizState {
 
 function finalizeQuizQuestions(quiz: QuizState): QuizState {
   const questions = quiz.questions.map((question) =>
-    question.status === "answered" ? question : markQuestionSkipped(question)
+    question.status === "answered" || question.status === "timedOut" ? question : markQuestionSkipped(question)
   );
   return withDerivedStats({ ...quiz, questions });
 }
@@ -171,7 +180,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "ANSWER_QUESTION": {
       const { quiz } = state;
       const q = { ...quiz.questions[quiz.current] };
-      if (q.status === "answered") return state;
+      if (q.status !== "unseen" && q.status !== "skipped") return state;
       const isCorrect = checkAnswer(q, action.response);
       q.userAnswer = action.response;
       q.isCorrect = isCorrect;
@@ -233,14 +242,15 @@ function reducer(state: AppState, action: Action): AppState {
       if (currentQuestion.status === "answered") return state;
 
       const response = action.response ?? null;
-      const isCorrect = response !== null ? checkAnswer(currentQuestion, response) : false;
+      const hasResponse = hasUsableResponse(response);
+      const isCorrect = hasResponse ? checkAnswer(currentQuestion, response) : false;
       const nextQuestion =
-        response === null
+        !hasResponse
           ? {
               ...currentQuestion,
               userAnswer: null,
               isCorrect: null,
-              status: "skipped" as const,
+              status: "timedOut" as const,
               skipped: true,
               remainingSeconds: 0,
             }

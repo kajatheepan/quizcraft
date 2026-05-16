@@ -80,6 +80,68 @@ describe("quiz flow reducer", () => {
     expect(next.quiz.skipped).toBe(1);
   });
 
+  it("timeout with no response marks the current question timed out", () => {
+    const started = startQuiz();
+    const timedOut = __test__.reducer(started, {
+      type: "TIMEOUT_QUESTION",
+      response: "",
+    } as any);
+
+    expect(timedOut.quiz.questions[0].status).toBe("timedOut");
+    expect(timedOut.quiz.questions[0].userAnswer).toBeNull();
+    expect(timedOut.quiz.questions[0].remainingSeconds).toBe(0);
+    expect(timedOut.quiz.skipped).toBe(1);
+  });
+
+  it("allows answering a manually skipped question when revisited", () => {
+    const started = startQuiz();
+    const skipped = __test__.reducer(started, { type: "NEXT_QUESTION" } as any);
+    const returned = __test__.reducer(skipped, {
+      type: "GOTO_QUESTION",
+      index: 0,
+    } as any);
+    const answered = __test__.reducer(returned, {
+      type: "ANSWER_QUESTION",
+      response: "B",
+    } as any);
+
+    expect(answered.quiz.questions[0].status).toBe("answered");
+    expect(answered.quiz.questions[0].userAnswer).toBe("B");
+    expect(answered.quiz.correct).toBe(1);
+    expect(answered.quiz.questions[1].status).toBe("skipped");
+    expect(answered.quiz.skipped).toBe(1);
+  });
+
+  it("ignores answers after a question has timed out", () => {
+    const started = startQuiz();
+    const timedOut = __test__.reducer(started, {
+      type: "TIMEOUT_QUESTION",
+      response: null,
+    } as any);
+    const lateAnswer = __test__.reducer(timedOut, {
+      type: "ANSWER_QUESTION",
+      response: "B",
+    } as any);
+
+    expect(lateAnswer.quiz.questions[0].status).toBe("timedOut");
+    expect(lateAnswer.quiz.questions[0].userAnswer).toBeNull();
+    expect(lateAnswer.quiz.correct).toBe(0);
+  });
+
+  it("timeout with a draft response grades the current question", () => {
+    const started = startQuiz();
+    const timedOut = __test__.reducer(started, {
+      type: "TIMEOUT_QUESTION",
+      response: "B",
+    } as any);
+
+    expect(timedOut.quiz.questions[0].status).toBe("answered");
+    expect(timedOut.quiz.questions[0].userAnswer).toBe("B");
+    expect(timedOut.quiz.questions[0].isCorrect).toBe(true);
+    expect(timedOut.quiz.questions[0].remainingSeconds).toBe(0);
+    expect(timedOut.quiz.correct).toBe(1);
+  });
+
   it("finishing marks remaining unanswered questions skipped", () => {
     const started = startQuiz();
     const answered = __test__.reducer(started, {

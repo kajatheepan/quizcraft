@@ -20,7 +20,7 @@ type ConfirmAction =
   | { type: "goto"; index: number };
 
 function buildExplainPrompt(question: Question): string {
-  const userAnswer = question.status === "skipped"
+  const userAnswer = question.status === "skipped" || question.status === "timedOut"
     ? "(skipped)"
     : Array.isArray(question.userAnswer)
       ? question.userAnswer.join(" | ")
@@ -50,20 +50,21 @@ function buildExplainPrompt(question: Question): string {
  * graded and prevents interaction when `answered` is true. */
 function MCQOptions({
   question,
-  answered,
+  locked,
+  revealAnswer,
   onAnswer,
 }: {
   question: Question;
-  answered: boolean;
+  locked: boolean;
+  revealAnswer: boolean;
   onAnswer: (letter: string) => void;
 }) {
-  const isActuallyAnswered = answered && question.isCorrect !== null;
   return (
     <div>
       {Object.entries(question.options).map(([letter, text]) => {
         const isCorrect = letter === question.answer;
         const isSelected = letter === question.userAnswer;
-        const showResult = isActuallyAnswered;
+        const showResult = revealAnswer && question.isCorrect !== null;
 
         let btnClass =
           "w-full flex items-center gap-3 px-3 py-3 border border-border rounded-md mb-2 last:mb-0 sm:px-4 " +
@@ -91,6 +92,11 @@ function MCQOptions({
             // Other options - grayed out
             btnClass += "opacity-40 ";
           }
+        } else if (locked && isSelected) {
+          btnClass += "border-accent bg-accent/5 ";
+          pillClass += "bg-accent/20 text-primary ";
+        } else if (locked) {
+          btnClass += "opacity-50 cursor-not-allowed ";
         } else {
           btnClass += "hover:border-accent ";
         }
@@ -99,8 +105,8 @@ function MCQOptions({
           <button
             key={letter}
             type="button"
-            disabled={answered}
-            onClick={() => !answered && onAnswer(letter)}
+            disabled={locked}
+            onClick={() => !locked && onAnswer(letter)}
             aria-label={`Option ${letter}: ${text}`}
             className={btnClass}
           >
@@ -125,18 +131,20 @@ function MCQOptions({
  * `onDraftChange` is used to capture a draft answer for timeout handling. */
 function FillInput({
   question,
-  answered,
+  locked,
+  revealAnswer,
   onAnswer,
   onDraftChange,
 }: {
   question: Question;
-  answered: boolean;
+  locked: boolean;
+  revealAnswer: boolean;
   onAnswer: (val: string) => void;
   onDraftChange: (val: string) => void;
 }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const skipped = question.status === "skipped";
+  const skipped = question.status === "skipped" || question.status === "timedOut";
 
   useEffect(() => {
     setValue("");
@@ -149,13 +157,13 @@ function FillInput({
   }, [value, onDraftChange]);
 
   const submit = () => {
-    if (!value.trim() || answered) return;
+    if (!value.trim() || locked) return;
     onAnswer(value.trim());
   };
 
   const hasTypedAnswer = Boolean(value.trim());
-  const isCorrect = answered && question.isCorrect === true;
-  const isWrong = answered && question.isCorrect === false;
+  const isCorrect = revealAnswer && question.isCorrect === true;
+  const isWrong = revealAnswer && question.isCorrect === false;
 
   return (
     <div>
@@ -163,7 +171,7 @@ function FillInput({
         ref={inputRef}
         type="text"
         value={value}
-        disabled={answered}
+        disabled={locked}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()}
         placeholder="Your answer..."
@@ -172,10 +180,10 @@ function FillInput({
           w-full h-12 bg-bg border rounded-md px-4 text-base text-primary font-sans
           placeholder:text-secondary transition-colors duration-[150ms]
           focus:outline-none focus:border-accent disabled:cursor-default
-          ${skipped ? "border-border opacity-60" : isCorrect ? "border-success" : isWrong ? "border-error" : "border-border"}
+          ${question.status === "timedOut" ? "border-border opacity-60" : isCorrect ? "border-success" : isWrong ? "border-error" : "border-border"}
         `}
       />
-      {!answered && (
+      {!locked && (
         <div className="flex justify-end mt-2.5">
           <button
             type="button"
@@ -193,7 +201,7 @@ function FillInput({
           </button>
         </div>
       )}
-      {answered && !skipped && (
+      {revealAnswer && !skipped && (
         <p className={`text-sm mt-2 ${isCorrect ? "text-success" : "text-error"}`}>
           {isCorrect ? "✓ Correct" : `✗ Answer: ${question.answer}`}
         </p>
@@ -208,18 +216,20 @@ function FillInput({
  * and submits a normalized array of answers via `onAnswer`. */
 function DragDropFill({
   question,
-  answered,
+  locked,
+  revealAnswer,
   onAnswer,
   onDraftChange,
 }: {
   question: Question;
-  answered: boolean;
+  locked: boolean;
+  revealAnswer: boolean;
   onAnswer: (val: string[]) => void;
   onDraftChange: (val: string[]) => void;
 }) {
   const blanks = useMemo(() => question.blanks ?? [], [question.blanks]);
   const [placements, setPlacements] = useState<Record<string, string>>({});
-  const skipped = question.status === "skipped";
+  const skipped = question.status === "skipped" || question.status === "timedOut";
 
   useEffect(() => {
     setPlacements({});
@@ -231,19 +241,19 @@ function DragDropFill({
   }, [blanks, placements, onDraftChange]);
 
   const handleDrop = (blankId: string, value: string) => {
-    if (answered) return;
+    if (locked) return;
     setPlacements((current) => ({ ...current, [blankId]: value }));
   };
 
   const handleSubmit = () => {
-    if (answered) return;
+    if (locked) return;
     const nextAnswer = blanks.map((blank) => placements[blank.id] ?? "");
     if (nextAnswer.some((value) => !value.trim())) return;
     onAnswer(nextAnswer);
   };
 
   useEffect(() => {
-    if (answered) return;
+    if (locked) return;
     const onEnterSubmit = (event: KeyboardEvent) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -251,7 +261,7 @@ function DragDropFill({
     };
     window.addEventListener("keydown", onEnterSubmit);
     return () => window.removeEventListener("keydown", onEnterSubmit);
-  }, [answered, placements, question.id]);
+  }, [locked, placements, question.id]);
 
   const renderedQuestion = question.question.split(/\[\[(\d+)\]\]/g).map((part, index) => {
     if (index % 2 === 0) {
@@ -261,13 +271,13 @@ function DragDropFill({
     const blank = blanks.find((item) => item.id === part);
     const currentValue = placements[part] ?? "";
     const isFilled = Boolean(currentValue);
-    const isCorrect = answered && blank ? normalizeAnswer(currentValue) === normalizeAnswer(blank.answer) : false;
+    const isCorrect = revealAnswer && blank ? normalizeAnswer(currentValue) === normalizeAnswer(blank.answer) : false;
 
     return (
       <button
         key={`${question.id}-blank-${part}`}
         type="button"
-        disabled={answered}
+        disabled={locked}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -277,13 +287,17 @@ function DragDropFill({
         className={[
           "inline-flex min-w-[110px] items-center justify-center align-middle mx-1 px-3 py-1.5 rounded-md border border-dashed",
           "text-sm transition-colors duration-[150ms]",
-          answered
+          revealAnswer
             ? isCorrect && isFilled
               ? "border-success text-success bg-success/5"
               : "border-error text-error bg-error/5"
-            : isFilled
+            : locked && isFilled
               ? "border-accent text-primary bg-accent/5"
-              : "border-border text-secondary bg-bg",
+              : locked
+                ? "border-border text-secondary bg-bg opacity-60"
+                : isFilled
+                  ? "border-accent text-primary bg-accent/5"
+                  : "border-border text-secondary bg-bg",
         ].join(" ")}
       >
         {currentValue || `Blank ${part}`}
@@ -292,7 +306,7 @@ function DragDropFill({
   });
 
   const choices = question.choices ?? [];
-  const showFeedback = answered && question.isCorrect !== null && !skipped;
+  const showFeedback = revealAnswer && question.isCorrect !== null && !skipped;
   const allBlanksFilled = blanks.length > 0 && blanks.every((blank) => (placements[blank.id] ?? "").trim());
 
   return (
@@ -304,12 +318,12 @@ function DragDropFill({
           <button
             key={`${question.id}-choice-${index}-${choice}`}
             type="button"
-            draggable={!answered}
-            disabled={answered}
+            draggable={!locked}
+            disabled={locked}
             onDragStart={(event) => event.dataTransfer.setData("text/plain", choice)}
             className={[
               "px-3 py-2 rounded-full border text-sm transition-all duration-[150ms]",
-              answered
+              locked
                 ? "border-border text-secondary"
                 : "border-border bg-surface text-primary shadow-card cursor-grab hover:-translate-y-0.5 hover:border-accent hover:shadow-md active:translate-y-0 active:shadow-sm active:cursor-grabbing",
             ].join(" ")}
@@ -319,7 +333,7 @@ function DragDropFill({
         ))}
       </div>
 
-      {!answered && (
+      {!locked && (
         <div className="flex justify-end">
           <button
             type="button"
@@ -365,29 +379,32 @@ function normalizeAnswer(value: string): string {
  * Disables interaction when `answered` is true. */
 function TFOptions({
   question,
-  answered,
+  locked,
+  revealAnswer,
   onAnswer,
 }: {
   question: Question;
-  answered: boolean;
+  locked: boolean;
+  revealAnswer: boolean;
   onAnswer: (val: string) => void;
 }) {
-  const skipped = question.status === "skipped";
+  const skipped = question.status === "skipped" || question.status === "timedOut";
   const getBtnClass = (val: string) => {
     const isCorrect = val === question.answer;
     const isSelected = val === question.userAnswer;
-    const isUnanswered = answered && !question.userAnswer && !skipped;
     let base =
       "flex-1 h-12 border border-border rounded-md text-base font-sans " +
       "transition-all duration-[150ms] ease-out " +
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
 
-    if (answered) {
+    if (revealAnswer) {
       if (isCorrect && isSelected) return base + "border-success text-success ";
       if (isCorrect && !isSelected) return base + "border-accent text-accent ";
       if (isSelected && !isCorrect) return base + "border-error text-error ";
       return base + "opacity-40 text-primary ";
     }
+    if (locked && isSelected) return base + "border-accent bg-accent/5 text-primary ";
+    if (locked) return base + "border-border text-secondary opacity-50 cursor-not-allowed ";
     return base + "text-primary hover:border-accent cursor-pointer ";
   };
 
@@ -397,8 +414,8 @@ function TFOptions({
         <button
           key={val}
           type="button"
-          disabled={answered}
-          onClick={() => !answered && onAnswer(val)}
+          disabled={locked}
+          onClick={() => !locked && onAnswer(val)}
           aria-label={`Answer ${val === "TRUE" ? "True" : "False"}`}
           className={getBtnClass(val)}
         >
@@ -544,7 +561,7 @@ export default function QuizView() {
       }
       return;
     }
-    if (quiz.answered) return;
+    if (question.status !== "unseen" && question.status !== "skipped") return;
     if (question.type === "MCQ") {
       const map: Record<string, string> = { a: "A", b: "B", c: "C", d: "D" };
       const letter = map[e.key.toLowerCase()];
@@ -554,7 +571,7 @@ export default function QuizView() {
       if (e.key.toLowerCase() === "t") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("TRUE"); }
       if (e.key.toLowerCase() === "f") { setRemaining(quiz.current, Math.max(0, Math.floor(remainingRef.current ?? quiz.settings.timerSeconds))); answerQuestion("FALSE"); }
     }
-  }, [question, quiz.answered, quiz.current, quiz.questions.length, unresolvedCount, pendingConfirmAction, answerQuestion, nextQuestion, finishQuiz, gotoQuestion, setRemaining]);
+  }, [question, quiz.current, quiz.questions.length, unresolvedCount, pendingConfirmAction, answerQuestion, nextQuestion, finishQuiz, gotoQuestion, setRemaining]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -619,12 +636,15 @@ export default function QuizView() {
       "w-8 h-8 rounded-md text-xs font-mono transition-colors duration-[150ms] " +
       "flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ";
 
+    const revealAnswer = quiz.settings.explanationTiming !== "end";
     if (index === quiz.current) return base + "bg-accent text-bg font-bold ";
+    if (item?.status === "answered" && !revealAnswer) return base + "bg-accent/10 border border-accent/40 text-primary ";
     if (item?.status === "answered" && item?.isCorrect === true) return base + "bg-success/20 border border-success text-success ";
     if (item?.status === "answered" && item?.isCorrect === false) return base + "bg-error/20 border border-error text-error ";
-    if (item?.status === "skipped") return base + "bg-border/60 border border-border text-secondary ";
+    if (item?.status === "skipped") return base + "bg-bg border border-border text-secondary ";
+    if (item?.status === "timedOut") return base + "bg-border/60 border border-border text-secondary ";
     return base + "bg-bg border border-border text-secondary hover:bg-border ";
-  }, [quiz.current, quiz.questions]);
+  }, [quiz.current, quiz.questions, quiz.settings.explanationTiming]);
 
   const requestNavigation = useCallback((action: ConfirmAction) => {
     if (action.type === "goto") {
@@ -700,15 +720,23 @@ export default function QuizView() {
     answerQuestion(response);
   };
 
-  // Compute if the question is ACTUALLY answered (not just skipped)
-  const isActuallyAnswered = question.status === "answered";
+  const isEndReviewMode = quiz.settings.explanationTiming === "end";
+  const isQuestionAnswered = question.status === "answered";
+  const isQuestionSkipped = question.status === "skipped";
+  const isQuestionTimedOut = question.status === "timedOut";
+  const isQuestionLocked = isQuestionAnswered || isQuestionTimedOut;
+  const shouldRevealAnswer = isQuestionAnswered && !isEndReviewMode;
+  const answeredCount = useMemo(
+    () => quiz.questions.filter((item) => item.status === "answered").length,
+    [quiz.questions]
+  );
 
   const progress = useMemo(
     () => (quiz.current / quiz.questions.length) * 100,
     [quiz.current, quiz.questions.length]
   );
   const isLast = quiz.current === quiz.questions.length - 1;
-  const showExplanation = isActuallyAnswered && question.explanation && quiz.settings.explanationTiming === "after";
+  const showExplanation = shouldRevealAnswer && question.explanation && quiz.settings.explanationTiming === "after";
   const followUpPrompt = buildExplainPrompt(question);
 
   const updateProviderSettings = (
@@ -776,10 +804,10 @@ export default function QuizView() {
   };
 
   const forwardLabel = isLast
-    ? isActuallyAnswered
+    ? isQuestionLocked
       ? "See results"
       : "Finish quiz"
-    : isActuallyAnswered
+    : isQuestionLocked || isQuestionSkipped
       ? "Next question"
       : "Skip & next";
 
@@ -887,7 +915,9 @@ export default function QuizView() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-secondary" aria-live="polite">
-                  ✓ {quiz.correct}{"  "}✗ {quiz.wrong}
+                  {isEndReviewMode
+                    ? `Answered ${answeredCount} / ${quiz.questions.length}`
+                    : `✓ ${quiz.correct}  ✗ ${quiz.wrong}`}
                 </span>
                 {quiz.settings.timer && timerDisplay && (
                   <span className={`text-sm font-mono min-w-[36px] text-right ${timerWarning ? "text-error pulse-glow" : "text-secondary"}`} aria-label="Time remaining">
@@ -903,20 +933,24 @@ export default function QuizView() {
               <p className="text-base font-medium text-primary leading-relaxed mb-5 sm:text-md sm:mb-7">{question.question}</p>
             )}
 
-            {question.status === "skipped" && <p className="text-sm text-secondary mb-4">Skipped</p>}
+            {(isQuestionSkipped || isQuestionTimedOut) && (
+              <p className="text-sm text-secondary mb-4">
+                {isQuestionTimedOut ? "Time is up. This question was skipped." : "Skipped"}
+              </p>
+            )}
 
             {question.type === "MCQ" && (
-              <MCQOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
+              <MCQOptions question={question} locked={isQuestionLocked} revealAnswer={shouldRevealAnswer} onAnswer={handleAnswerWrapped} />
             )}
             {question.type === "FILL" && (
               question.fillMode === "dragdrop" ? (
-                <DragDropFill question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
+                <DragDropFill question={question} locked={isQuestionLocked} revealAnswer={shouldRevealAnswer} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
               ) : (
-                <FillInput question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
+                <FillInput question={question} locked={isQuestionLocked} revealAnswer={shouldRevealAnswer} onAnswer={handleAnswerWrapped} onDraftChange={updateDraftAnswer} />
               )
             )}
             {question.type === "TF" && (
-              <TFOptions question={question} answered={isActuallyAnswered} onAnswer={handleAnswerWrapped} />
+              <TFOptions question={question} locked={isQuestionLocked} revealAnswer={shouldRevealAnswer} onAnswer={handleAnswerWrapped} />
             )}
           </div>
 

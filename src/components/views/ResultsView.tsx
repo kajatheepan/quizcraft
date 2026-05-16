@@ -15,6 +15,7 @@ import { Copy } from "lucide-react";
 type ReviewFilter = "all" | "review" | "correct" | "wrong" | "skipped";
 
 function getQuestionStatus(question: Question) {
+  if (question.status === "timedOut") return "skipped";
   if (question.status) return question.status;
   if (question.isCorrect !== null) return "answered";
   if (question.skipped) return "skipped";

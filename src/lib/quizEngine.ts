@@ -100,7 +100,7 @@ export function getQuestionStats(questions: Question[]) {
   return {
     correct: questions.filter((question) => question.status === "answered" && question.isCorrect === true).length,
     wrong: questions.filter((question) => question.status === "answered" && question.isCorrect === false).length,
-    skipped: questions.filter((question) => question.status === "skipped").length,
+    skipped: questions.filter((question) => question.status === "skipped" || question.status === "timedOut").length,
   };
 }
 

@@ -4,7 +4,7 @@
 
 export type QuestionType = "MCQ" | "FILL" | "TF";
 export type FillMode = "typed" | "dragdrop";
-export type QuestionStatus = "unseen" | "answered" | "skipped";
+export type QuestionStatus = "unseen" | "answered" | "skipped" | "timedOut";
 export type ThemeMode = "system" | "light" | "dark";
 export type ExplanationStyle = "short" | "full";
 export type PromptMode = "guided" | "format";
