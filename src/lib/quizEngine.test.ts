@@ -73,6 +73,8 @@ describe("buildPrompt", () => {
   it("uses short plain-text explanations by default", () => {
     const prompt = buildPrompt("Data Link Layer", 5, new Set(["MCQ"]), "Medium", "");
 
+    expect(prompt).toContain("Question style: Exam practice.");
+    expect(prompt).toContain("Mix recall, application, comparison, and misconception questions");
     expect(prompt).toContain("Explanation detail: Short.");
     expect(prompt).toContain("Explanations must be short plain text");
   });
@@ -92,5 +94,31 @@ describe("buildPrompt", () => {
     expect(prompt).toContain("You can write your own quiz instructions above this format");
     expect(prompt).toContain('"questions": [');
     expect(prompt).not.toContain("Question quality policy");
+    expect(prompt).not.toContain("Source policy");
+  });
+
+  it("can request hard application questions", () => {
+    const prompt = buildPrompt("Operating Systems", 5, new Set(["MCQ"]), "Hard", "", "short", "guided", "hard");
+
+    expect(prompt).toContain("Question style: Hard application.");
+    expect(prompt).toContain("Use scenarios, troubleshooting cases, edge cases");
+    expect(prompt).toContain("multi-step reasoning");
+  });
+
+  it("can request past paper style questions", () => {
+    const prompt = buildPrompt("Networking", 5, new Set(["MCQ"]), "Hard", "", "short", "guided", "past");
+
+    expect(prompt).toContain("Question style: Past paper style.");
+    expect(prompt).toContain("formal exam-style wording");
+    expect(prompt).toContain("conceptual traps");
+  });
+
+  it("can require uploaded sources only", () => {
+    const prompt = buildPrompt("Data Link Layer", 5, new Set(["MCQ"]), "Medium", "", "short", "guided", "exam", "only");
+
+    expect(prompt).toContain("Source usage: Use uploaded sources only.");
+    expect(prompt).toContain("Do not use outside knowledge or generic topic knowledge.");
+    expect(prompt).toContain('"questions": []');
+    expect(prompt).toContain("Upload notes, slides, PDFs, or source material");
   });
 });

@@ -8,7 +8,7 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings } from "@/lib/storage";
-import type { AIProvider, ExplanationStyle, PromptMode } from "@/types/quiz";
+import type { AIProvider, ExplanationStyle, PromptMode, QuestionStyle, SourceMode } from "@/types/quiz";
 import { Copy } from "lucide-react";
 
 const ALL_TYPES = ["MCQ", "FILL", "TF"] as const;
@@ -17,6 +17,12 @@ const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard", "Mixed"].map((v) => ({ lab
 const EXPLANATION_OPTIONS = [
   { label: "Short", value: "short" },
   { label: "Full Markdown", value: "full" },
+];
+const QUESTION_STYLE_OPTIONS = [
+  { label: "Exam practice", value: "exam" },
+  { label: "Concept check", value: "concept" },
+  { label: "Hard application", value: "hard" },
+  { label: "Past paper style", value: "past" },
 ];
 const PROMPT_MODES: Array<{ label: string; value: PromptMode; description: string }> = [
   {
@@ -40,13 +46,15 @@ export default function PromptView() {
   const [difficulty, setDifficulty] = useState("Medium");
   const [explanationStyle, setExplanationStyle] = useState<ExplanationStyle>("short");
   const [promptMode, setPromptMode] = useState<PromptMode>("guided");
+  const [questionStyle, setQuestionStyle] = useState<QuestionStyle>("exam");
+  const [sourceMode, setSourceMode] = useState<SourceMode>("only");
   const [focus, setFocus] = useState("");
   const [copyLabel, setCopyLabel] = useState("Copy Prompt");
 
   const prompt = useMemo(
-    () => buildPrompt(subject, count, activeTypes, difficulty, focus, explanationStyle, promptMode),
+    () => buildPrompt(subject, count, activeTypes, difficulty, focus, explanationStyle, promptMode, questionStyle, sourceMode),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [subject, count, activeTypes, difficulty, focus, explanationStyle, promptMode]
+    [subject, count, activeTypes, difficulty, focus, explanationStyle, promptMode, questionStyle, sourceMode]
   );
 
   // Slider pill position
@@ -158,6 +166,26 @@ export default function PromptView() {
             </div>
           )}
 
+          {/* Focus area */}
+          {promptMode === "guided" && (
+            <div className="mb-6">
+              <label htmlFor="prompt-focus" className="block text-sm text-secondary mb-2">
+                Focus area{" "}
+                <span className="text-secondary opacity-60">(optional)</span>
+              </label>
+              <textarea
+                id="prompt-focus"
+                value={focus}
+                onChange={(e) => setFocus(e.target.value)}
+                placeholder="Specific topics to emphasize..."
+                rows={3}
+                className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-primary
+                           placeholder:text-secondary resize-none transition-colors duration-[150ms]
+                           focus:outline-none focus:border-accent"
+              />
+            </div>
+          )}
+
           {/* Count slider */}
           {promptMode === "guided" && (
             <div className="mb-6">
@@ -221,6 +249,63 @@ export default function PromptView() {
             </div>
           )}
 
+          {/* Question style */}
+          {promptMode === "guided" && (
+            <div className="mb-6">
+              <label htmlFor="prompt-question-style" className="block text-sm text-secondary mb-2">Question style</label>
+              <div className="relative">
+                <select
+                  id="prompt-question-style"
+                  value={questionStyle}
+                  onChange={(event) => setQuestionStyle(event.target.value as QuestionStyle)}
+                  className="w-full h-10 appearance-none rounded-md border border-border bg-surface px-3 pr-9 text-sm text-primary
+                             transition-colors duration-[150ms] focus:outline-none focus:border-accent"
+                >
+                  {QUESTION_STYLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-secondary" aria-hidden="true">
+                  ▾
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-secondary">
+                Choose how the AI should shape the questions, from balanced exam practice to harder application cases.
+              </p>
+            </div>
+          )}
+
+          {/* Source usage */}
+          {promptMode === "guided" && (
+            <div className="mb-6">
+              <label className="block text-sm text-secondary mb-2">Source usage</label>
+              <label
+                htmlFor="prompt-source-only"
+                className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5
+                           transition-colors duration-[150ms] hover:border-secondary"
+              >
+                <span>
+                  <span className="block text-sm text-primary">Use uploaded sources only</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-secondary">
+                    Default is to prefer uploaded sources and fall back to topic knowledge.
+                  </span>
+                </span>
+                <input
+                  id="prompt-source-only"
+                  type="checkbox"
+                  checked={sourceMode === "only"}
+                  onChange={(event) => setSourceMode(event.target.checked ? "only" : "prefer")}
+                  className="h-4 w-4 rounded border-border accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                />
+              </label>
+              <p className="mt-2 text-xs leading-relaxed text-secondary">
+                Source-only mode is strict. Upload notes, slides, or PDFs in the AI chat before using it.
+              </p>
+            </div>
+          )}
+
           {/* Explanation detail */}
           <div className="mb-6">
             <label className="block text-sm text-secondary mb-2">Explanation detail</label>
@@ -235,29 +320,16 @@ export default function PromptView() {
             </p>
           </div>
 
-          {/* Focus area */}
-          {promptMode === "guided" && (
-            <div className="mb-6">
-              <label htmlFor="prompt-focus" className="block text-sm text-secondary mb-2">
-                Focus area{" "}
-                <span className="text-secondary opacity-60">(optional)</span>
-              </label>
-              <textarea
-                id="prompt-focus"
-                value={focus}
-                onChange={(e) => setFocus(e.target.value)}
-                placeholder="Specific topics to emphasize..."
-                rows={3}
-                className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-primary
-                           placeholder:text-secondary resize-none transition-colors duration-[150ms]
-                           focus:outline-none focus:border-accent"
-              />
-            </div>
-          )}
         </div>
 
         {/* RIGHT: Preview */}
         <div>
+          {promptMode === "guided" && (
+            <div className="mb-4 rounded-md border border-border bg-surface/60 px-3 py-2 text-xs leading-relaxed text-secondary">
+              Upload notes, slides, or PDFs in ChatGPT/Claude first. Without sources, the AI may use general knowledge.
+            </div>
+          )}
+
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-2xs font-medium tracking-[0.1em] uppercase text-secondary">
               Prompt Preview

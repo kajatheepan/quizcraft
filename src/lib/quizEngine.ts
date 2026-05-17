@@ -2,7 +2,7 @@
 // Utility helpers to prepare quizzes, shuffle options, check answers and build
 // result payloads. Keep pure functions here for easy unit testing.
 
-import type { ExplanationStyle, PromptMode, Question, QuizSettings, ResultData } from "@/types/quiz";
+import type { ExplanationStyle, PromptMode, Question, QuestionStyle, QuizSettings, ResultData, SourceMode } from "@/types/quiz";
 
 /** Return a new array with elements shuffled using Fisher–Yates. */
 export function fisherYates<T>(arr: T[]): T[] {
@@ -133,7 +133,9 @@ export function buildPrompt(
   difficulty: string,
   focus: string,
   explanationStyle: ExplanationStyle = "short",
-  promptMode: PromptMode = "guided"
+  promptMode: PromptMode = "guided",
+  questionStyle: QuestionStyle = "exam",
+  sourceMode: SourceMode = "prefer"
 ): string {
   const subjectStr = subject.trim() || "[YOUR TOPIC]";
   const typeList = Array.from(types).join(", ") || "MCQ";
@@ -149,6 +151,28 @@ export function buildPrompt(
   const explanationExample = explanationStyle === "full"
     ? "### Why this is correct\\nExplain the concept in clear paragraphs. Use bullets, tables, or diagrams only if they make this specific explanation clearer."
     : "Short explanation";
+  const questionStyleLabel: Record<QuestionStyle, string> = {
+    exam: "Exam practice",
+    concept: "Concept check",
+    hard: "Hard application",
+    past: "Past paper style",
+  };
+  const questionStyleRule: Record<QuestionStyle, string> = {
+    exam: "Mix recall, application, comparison, and misconception questions at a balanced university exam-practice level.",
+    concept: "Focus on why/why-not reasoning, definitions in context, concept boundaries, and common misunderstandings.",
+    hard: "Use scenarios, troubleshooting cases, edge cases, and distractors that require multi-step reasoning.",
+    past: "Use formal exam-style wording, precise answer options, and conceptual traps similar to past-paper questions.",
+  };
+  const sourcePolicy = sourceMode === "only"
+    ? `Source policy:
+- Use uploaded files, lecture slides, PDFs, notes, or project/chat knowledge only.
+- Do not use outside knowledge or generic topic knowledge.
+- Do not invent facts, slide names, page numbers, examples, or terminology not supported by the sources.
+- If the available source material is missing or insufficient, return this valid JSON instead: { "questions": [], "explanation": "Upload notes, slides, PDFs, or source material in this chat before generating a source-only quiz." }`
+    : `Source policy:
+- First use the uploaded files, lecture slides, PDFs, notes, or project/chat knowledge available in this conversation.
+- If sources are available, base the questions on those sources instead of generic internet-style knowledge.
+- If the sources do not contain enough material, still generate useful questions from the topic, but do not invent fake slide names, page numbers, or unsupported facts.`;
 
   const formatIntro = promptMode === "format"
     ? `Use this QuizCraft JSON format for your quiz output. Return ONLY valid JSON. Do not wrap the response in markdown.
@@ -160,14 +184,14 @@ Generate ${count} quiz questions about "${subjectStr}".
 Question types allowed: ${typeList}.
 Difficulty: ${difficulty}.${focusLine}
 Explanation detail: ${explanationStyle === "full" ? "Full Markdown" : "Short"}.
+Question style: ${questionStyleLabel[questionStyle]}.
+Source usage: ${sourceMode === "only" ? "Use uploaded sources only" : "Prefer uploaded sources"}.
 
-Source policy:
-- First use the uploaded files, lecture slides, PDFs, notes, or project/chat knowledge available in this conversation.
-- If sources are available, base the questions on those sources instead of generic internet-style knowledge.
-- If the sources do not contain enough material, still generate useful questions from the topic, but do not invent fake slide names, page numbers, or unsupported facts.
+${sourcePolicy}
 
 Question quality policy:
 - Write questions for university students, not school-level memorization.
+- ${questionStyleRule[questionStyle]}
 - Prefer concept application, comparison, cause/effect, troubleshooting, scenario analysis, and common misconception testing.
 - Avoid silly word-play, obvious definition-only questions, and questions that can be answered by matching one highlighted word from the notes.
 - Make distractors plausible and based on real confusions students make.

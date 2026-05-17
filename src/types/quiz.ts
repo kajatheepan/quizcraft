@@ -8,6 +8,8 @@ export type QuestionStatus = "unseen" | "answered" | "skipped" | "timedOut";
 export type ThemeMode = "system" | "light" | "dark";
 export type ExplanationStyle = "short" | "full";
 export type PromptMode = "guided" | "format";
+export type QuestionStyle = "exam" | "concept" | "hard" | "past";
+export type SourceMode = "prefer" | "only";
 
 export interface DragBlank {
   id: string;
