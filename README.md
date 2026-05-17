@@ -1,6 +1,6 @@
 # QuizCraft Plus
 
-QuizCraft Plus is a small interactive quiz practice app that turns AI-generated study content into active learning instead of keeping it as plain text in a chat.
+QuizCraft Plus is a small interactive quiz practice app that turns plain questions into active learning. Instead of just reading questions and answers in a ChatGPT chat, you can paste them into the app and practice them like a real quiz.
 
 Paste a quiz in JSON format, start practicing, check your answers, and review the questions you missed. When an explanation is not enough, you can open a focused follow-up prompt in ChatGPT or Claude.
 
