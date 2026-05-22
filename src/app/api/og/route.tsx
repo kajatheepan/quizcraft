@@ -3,6 +3,9 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const SITE_HOST = SITE_URL.replace(/^https?:\/\//, "");
+
 const BRAND_DARK = "#131620";
 const BRAND_SURFACE = "#1c2030";
 const BRAND_ACCENT = "#7c6af7";
@@ -213,7 +216,7 @@ function QuizOGImage({ title, count }: { title: string; count: number }) {
           </div>
 
           <span style={{ color: BRAND_SECONDARY, fontSize: 16 }}>·</span>
-          <span style={{ fontSize: 16, color: BRAND_SECONDARY }}>Practice now at quizcraft.app</span>
+          <span style={{ fontSize: 16, color: BRAND_SECONDARY }}>Practice now at {SITE_HOST}</span>
         </div>
       </div>
     </div>
@@ -251,21 +254,6 @@ function ScoreOGImage({
       }}
     >
       <Background />
-
-      {/* Grade colour glow blob — use box-shadow on a transparent div instead of filter: blur */}
-      <div
-        style={{
-          position: "absolute",
-          top: 160,
-          left: 500,
-          width: 280,
-          height: 160,
-          borderRadius: "50%",
-          backgroundColor: "transparent",
-          boxShadow: `0 0 120px 60px ${gradeColor}22`,
-          display: "flex",
-        }}
-      />
 
       {/* Content */}
       <div
@@ -380,7 +368,7 @@ function ScoreOGImage({
         {/* Bottom CTA */}
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span style={{ fontSize: 16, color: BRAND_SECONDARY }}>
-            Practice at quizcraft.app
+            Practice at {SITE_HOST}
           </span>
           <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: BRAND_SECONDARY, display: "flex" }} />
           <span style={{ fontSize: 16, color: BRAND_SECONDARY }}>

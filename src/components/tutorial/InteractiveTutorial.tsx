@@ -10,6 +10,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Sparkles, Brain, Share2, Play, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 const ONBOARDING_KEY = "quizcraft_onboarding_seen";
+const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "").replace(/^https?:\/\//, "");
 
 function getOnboardingSeen(): boolean {
   if (typeof window === "undefined") return true;
@@ -167,7 +168,7 @@ export default function InteractiveTutorial() {
             <span>Compiled Sharing Link</span>
           </div>
           <div className="p-3.5 rounded-lg bg-bg border border-border/40 flex items-center justify-between gap-3 shadow-sm">
-            <span className="font-mono text-accent truncate select-all">quizcraft.plus/share/8hF3k2m...</span>
+            <span className="font-mono text-accent truncate select-all">{SITE_HOST}/share/8hF3k2m...</span>
             <span className="text-2xs font-semibold uppercase tracking-wider text-success px-2 py-0.5 rounded-full bg-success/15 border border-success/30">
               Copied!
             </span>
