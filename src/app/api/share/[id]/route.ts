@@ -5,9 +5,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const shareId = params.id;
+  const { id: shareId } = await params;
   if (!isValidShareId(shareId)) {
     return NextResponse.json({ error: "Invalid share id" }, { status: 400 });
   }
