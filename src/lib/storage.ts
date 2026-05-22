@@ -241,13 +241,21 @@ export function getSessions(): QuizSession[] {
   return load().sessions ?? [];
 }
 
+function hasUnfinishedQuestion(session: QuizSession): boolean {
+  return session.quiz.questions.some((question) =>
+    question.status !== "answered" &&
+    question.status !== "skipped" &&
+    question.status !== "timedOut"
+  );
+}
+
 /**
  * Return in-progress sessions sorted by most recently updated first.
  * Useful for showing a "Continue" card on the home screen.
  */
 export function getInProgressSessions(): QuizSession[] {
   return getSessions()
-    .filter((session) => session.status === "in-progress")
+    .filter((session) => session.status === "in-progress" && hasUnfinishedQuestion(session))
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 

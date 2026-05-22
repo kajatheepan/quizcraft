@@ -18,9 +18,10 @@ import {
 } from "lucide-react";
 
 export default function HomeView() {
-  const { navigate, restoreSavedQuiz, discardSavedQuiz, loadResult, showToast } = useAppStore();
+  const { state, navigate, restoreSavedQuiz, discardSavedQuiz, loadResult, showToast } = useAppStore();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [inProgressSessions, setInProgressSessions] = useState<QuizSession[]>([]);
+  const currentView = state.view;
 
   const refreshSavedData = () => {
     setInProgressSessions(getInProgressSessions());
@@ -28,8 +29,10 @@ export default function HomeView() {
   };
 
   useEffect(() => {
-    refreshSavedData();
-  }, []);
+    if (currentView === "home") {
+      refreshSavedData();
+    }
+  }, [currentView]);
 
   const handleDiscardSavedQuiz = (sessionId: string) => {
     if (!window.confirm("Discard this saved quiz session? Your progress will be lost.")) return;
