@@ -4,6 +4,7 @@
 // error messages suitable for showing to the user.
 
 import type { DragBlank, FillMode, ParseResult, Question, QuestionType } from "@/types/quiz";
+import { jsonrepair } from "jsonrepair";
 
 type QuizJsonQuestion = {
   id?: number | string;
@@ -23,6 +24,14 @@ type QuizJsonQuestion = {
   }>;
   choices?: string[];
   explanation?: string;
+};
+
+type QuizJsonPayload = {
+  title?: string;
+  questions?: QuizJsonQuestion[];
+  quiz?: QuizJsonPayload;
+  model?: QuizJsonPayload;
+  data?: QuizJsonPayload;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -84,13 +93,30 @@ function stripJsonCodeFence(rawText: string): string {
     .trim();
 }
 
+function extractJsonString(rawText: string): string {
+  const fenceMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/i) || rawText.match(/```\s*([\s\S]*?)\s*```/i);
+  const text = fenceMatch ? fenceMatch[1].trim() : stripJsonCodeFence(rawText);
+
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    return text.substring(start, end + 1);
+  }
+  const arrayStart = text.indexOf("[");
+  const arrayEnd = text.lastIndexOf("]");
+  if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
+    return text.substring(arrayStart, arrayEnd + 1);
+  }
+  return text;
+}
+
 function looksLikeLegacyQuiz(rawText: string): boolean {
   return /(^|\n)\s*Q\d+\./i.test(rawText);
 }
 
 function looksLikeJson(rawText: string): boolean {
   const cleaned = stripJsonCodeFence(rawText);
-  return cleaned.startsWith("{") || cleaned.startsWith("[");
+  return cleaned.includes("{") || cleaned.includes("[");
 }
 
 function getJsonLineColumn(text: string, position: number): { line: number; column: number } {
@@ -113,22 +139,186 @@ function formatJsonParseError(error: unknown, text: string): string {
   return `JSON is invalid near line ${line}, column ${column}. Expected { "questions": [...] }.`;
 }
 
+function isClosingQuote(str: string, index: number): boolean {
+  let nextIndex = index + 1;
+  while (nextIndex < str.length && /\s/.test(str[nextIndex])) {
+    nextIndex++;
+  }
+  if (nextIndex >= str.length) {
+    return true; // EOF
+  }
+  
+  const nextChar = str[nextIndex];
+  if (nextChar === ':' || nextChar === '}' || nextChar === ']') {
+    return true;
+  }
+  
+  if (nextChar === ',') {
+    let afterCommaIndex = nextIndex + 1;
+    while (afterCommaIndex < str.length && /\s/.test(str[afterCommaIndex])) {
+      afterCommaIndex++;
+    }
+    if (afterCommaIndex >= str.length) {
+      return true;
+    }
+    const afterCommaChar = str[afterCommaIndex];
+    return afterCommaChar === '"' || afterCommaChar === '{' || afterCommaChar === '[' || afterCommaChar === '}' || afterCommaChar === ']';
+  }
+  
+  return false;
+}
+
+function repairJson(jsonStr: string): string {
+  let inString = false;
+  let escapeActive = false;
+  const bracesStack: string[] = [];
+  const result: string[] = [];
+  
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    
+    if (inString) {
+      if (escapeActive) {
+        escapeActive = false;
+        result.push(char);
+      } else if (char === '\\') {
+        escapeActive = true;
+        result.push(char);
+      } else if (char === '"') {
+        if (isClosingQuote(jsonStr, i)) {
+          inString = false;
+          result.push(char);
+        } else {
+          result.push('\\"');
+        }
+      } else if (char === '\n') {
+        result.push('\\n');
+      } else if (char === '\r') {
+        result.push('\\r');
+      } else if (char === '\t') {
+        result.push('\\t');
+      } else {
+        result.push(char);
+      }
+    } else {
+      if (char === '"') {
+        inString = true;
+        result.push(char);
+      } else if (char === '{' || char === '[') {
+        bracesStack.push(char);
+        result.push(char);
+      } else if (char === '}' || char === ']') {
+        if (bracesStack.length > 0) {
+          const expected = bracesStack[bracesStack.length - 1];
+          if ((char === '}' && expected === '{') || (char === ']' && expected === '[')) {
+            bracesStack.pop();
+          }
+        }
+        
+        let backtrackIndex = result.length - 1;
+        while (backtrackIndex >= 0 && /\s/.test(result[backtrackIndex])) {
+          backtrackIndex--;
+        }
+        if (backtrackIndex >= 0 && result[backtrackIndex] === ',') {
+          result[backtrackIndex] = '';
+        }
+        result.push(char);
+      } else {
+        result.push(char);
+      }
+    }
+  }
+  
+  if (inString) {
+    result.push('"');
+  }
+  
+  while (bracesStack.length > 0) {
+    const top = bracesStack.pop();
+    if (top === '{') {
+      let backtrackIndex = result.length - 1;
+      while (backtrackIndex >= 0 && /\s/.test(result[backtrackIndex])) {
+        backtrackIndex--;
+      }
+      if (backtrackIndex >= 0 && result[backtrackIndex] === ',') {
+        result[backtrackIndex] = '';
+      }
+      result.push('}');
+    } else if (top === '[') {
+      let backtrackIndex = result.length - 1;
+      while (backtrackIndex >= 0 && /\s/.test(result[backtrackIndex])) {
+        backtrackIndex--;
+      }
+      if (backtrackIndex >= 0 && result[backtrackIndex] === ',') {
+        result[backtrackIndex] = '';
+      }
+      result.push(']');
+    }
+  }
+  
+  return result.join('');
+}
+
+function extractTitleFromRawText(rawText: string): string | undefined {
+  if (!rawText) return undefined;
+  const titleMatch = rawText.match(/(?:^|\n)\s*(?:quiz\s*)?title\s*:\s*([^\n]+)/i);
+  if (titleMatch && titleMatch[1].trim()) {
+    return titleMatch[1].trim().replace(/^["'*#_\s]+|["'*#_\s]+$/g, "").trim();
+  }
+  const headerMatch = rawText.match(/(?:^|\n)\s*#+\s*([^\n]+)/);
+  if (headerMatch && headerMatch[1].trim()) {
+    const cleaned = headerMatch[1].trim().replace(/^["'*#_\s]+|["'*#_\s]+$/g, "").trim();
+    if (!/^(?:quizcraft\s*format|end|questions)$/i.test(cleaned)) {
+      return cleaned;
+    }
+  }
+  return undefined;
+}
+
 // Attempt to parse JSON-style quiz payload (the preferred format).
 function parseJsonQuiz(rawText: string): ParseResult | null {
-  const cleanedText = stripJsonCodeFence(rawText);
+  const cleanedText = extractJsonString(rawText);
+  let repairedText = cleanedText;
+
+  try {
+    repairedText = jsonrepair(cleanedText);
+  } catch {
+    repairedText = repairJson(cleanedText);
+  }
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(cleanedText);
+    parsed = JSON.parse(repairedText);
   } catch (error) {
     if (looksLikeLegacyQuiz(rawText)) return null;
-    return { questions: [], errors: [formatJsonParseError(error, cleanedText)] };
+    return { questions: [], errors: [formatJsonParseError(error, repairedText)] };
   }
 
-  const payload = parsed as { questions?: QuizJsonQuestion[] } | QuizJsonQuestion[];
-  const sourceQuestions = Array.isArray(payload) ? payload : payload.questions;
+  const payload = parsed as QuizJsonPayload | QuizJsonQuestion[];
+  const normalizedPayload = Array.isArray(payload)
+    ? payload
+    : payload.questions
+      ? payload
+      : payload.quiz?.questions
+        ? payload.quiz
+        : payload.model?.questions
+          ? payload.model
+          : payload.data?.questions
+            ? payload.data
+            : payload;
+
+  const sourceQuestions = Array.isArray(normalizedPayload) ? normalizedPayload : normalizedPayload.questions;
   if (!Array.isArray(sourceQuestions)) {
     return { questions: [], errors: ['Expected { "questions": [...] } or an array of question objects.'] };
+  }
+
+  if (!sourceQuestions.some(isRecord)) {
+    return { questions: [], errors: ['JSON is invalid. Expected { "questions": [...] }.'] };
+  }
+
+  let title = Array.isArray(normalizedPayload) ? undefined : (normalizedPayload.title ? String(normalizedPayload.title).trim() : undefined);
+  if (!title) {
+    title = extractTitleFromRawText(rawText);
   }
 
   const errors: string[] = [];
@@ -284,7 +474,7 @@ function parseJsonQuiz(rawText: string): ParseResult | null {
     errors.push(`Q${qNum}: Unsupported question type.`);
   });
 
-  return { questions, errors };
+  return { title, questions, errors };
 }
 
 // Fallback parser for the legacy plaintext quiz format.
@@ -294,6 +484,8 @@ function parseLegacyQuiz(rawText: string): ParseResult {
 
   let text = rawText.trim();
   text = text.replace(/===QUIZCRAFT FORMAT===/gi, "").replace(/===END===/gi, "").trim();
+
+  const title = extractTitleFromRawText(rawText);
 
   const blocks = text
     .split(/(?=Q\d+\.)/g)
@@ -380,7 +572,7 @@ function parseLegacyQuiz(rawText: string): ParseResult {
     });
   }
 
-  return { questions, errors };
+  return { title, questions, errors };
 }
 
 /**

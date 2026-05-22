@@ -62,7 +62,7 @@ const initialState: AppState = {
 type Action =
   | { type: "NAVIGATE"; view: ViewName }
   | { type: "NAVIGATE_BACK"; fallback?: ViewName }
-  | { type: "START_QUIZ"; questions: Question[]; settings: QuizSettings }
+  | { type: "START_QUIZ"; questions: Question[]; settings: QuizSettings; title?: string }
   | { type: "ANSWER_QUESTION"; response: string | string[] }
   | { type: "SKIP_QUESTION" }
   | { type: "TIMEOUT_QUESTION"; response?: string | string[] | null }
@@ -167,6 +167,7 @@ function reducer(state: AppState, action: Action): AppState {
         startTime: Date.now(),
         settings: action.settings,
         answered: false,
+        title: action.title,
       });
       return {
         ...state,
@@ -371,7 +372,7 @@ function buildSessionFromState(state: AppState): QuizSession | null {
   if (quiz.questions.length === 0 || state.view === "results") return null;
 
   const startedAt = new Date(quiz.startTime ?? Date.now()).toISOString();
-  const title = quiz.original[0]?.question ?? quiz.questions[0]?.question ?? "Quiz";
+  const title = quiz.title || (quiz.original[0]?.question ?? quiz.questions[0]?.question ?? "Quiz");
 
   return {
     id: String(quiz.startTime ?? Date.now()),
@@ -419,8 +420,8 @@ export function useAppStore() {
   const navigate = useCallback((view: ViewName) => dispatch({ type: "NAVIGATE", view }), []);
   const navigateBack = useCallback((fallback?: ViewName) => dispatch({ type: "NAVIGATE_BACK", fallback }), []);
 
-  const startQuiz = useCallback((questions: Question[], settings: QuizSettings) =>
-    dispatch({ type: "START_QUIZ", questions, settings }), []);
+  const startQuiz = useCallback((questions: Question[], settings: QuizSettings, title?: string) =>
+    dispatch({ type: "START_QUIZ", questions, settings, title }), []);
 
   const answerQuestion = useCallback((response: string | string[]) =>
     dispatch({ type: "ANSWER_QUESTION", response }), []);

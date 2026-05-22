@@ -32,19 +32,7 @@ export default function InputView() {
   const [aiSettings, setAiSettings] = useState<AILinkSettings | null>(null);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Load saved state on mount
-  useEffect(() => {
-    const saved = getLastQuizText();
-    const prefs = getPreferences();
-    if (saved) {
-      setRawText(saved);
-      validate(saved);
-    }
-    setSettings((s) => ({ ...s, ...prefs }));
-    setAiSettings(getAILinkSettings());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const validate = useCallback((val: string) => {
     if (!val.trim()) {
@@ -68,6 +56,60 @@ export default function InputView() {
       setQuestionCount(0);
     }
   }, []);
+
+  // Load saved state on mount
+  useEffect(() => {
+    const saved = getLastQuizText();
+    const prefs = getPreferences();
+    if (saved) {
+      setRawText(saved);
+      validate(saved);
+    }
+    setSettings((s) => ({ ...s, ...prefs }));
+    setAiSettings(getAILinkSettings());
+
+    // Try to auto-paste from clipboard if it contains a new valid quiz
+    const tryAutopaste = async () => {
+      try {
+        if (!navigator?.clipboard?.readText) return;
+        // Don't auto-paste if the user is currently editing the textarea
+        if (document.activeElement === textareaRef.current) return;
+
+        const clipText = await navigator.clipboard.readText();
+        if (!clipText || !clipText.trim()) return;
+
+        // Skip if same as current textarea value
+        const currentVal = textareaRef.current?.value ?? "";
+        if (clipText.trim() === currentVal.trim()) return;
+
+        const { questions, errors } = parseQuiz(clipText);
+        if (questions.length > 0 && errors.length === 0) {
+          setRawText(clipText);
+          saveLastQuizText(clipText);
+          validate(clipText);
+          showToast("Autopasted valid quiz from clipboard!");
+        }
+      } catch (err) {
+        // Clipboard access denied or not supported by browser, ignore silently
+        console.warn("Clipboard auto-paste not allowed or supported by browser:", err);
+      }
+    };
+
+    // Check clipboard on mount after page load
+    const timeoutId = setTimeout(tryAutopaste, 200);
+
+    // Also check on window focus
+    const focusListener = () => {
+      tryAutopaste();
+    };
+    window.addEventListener("focus", focusListener);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("focus", focusListener);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validate, showToast]);
 
   const handleTextChange = (val: string) => {
     setRawText(val);
@@ -101,9 +143,9 @@ export default function InputView() {
 
   const handleStart = () => {
     if (!isValid) return;
-    const { questions } = parseQuiz(rawText);
+    const { title, questions } = parseQuiz(rawText);
     if (questions.length === 0) return;
-    startQuiz(questions, settings);
+    startQuiz(questions, settings, title);
   };
 
   const handleLoadDemo = () => {
@@ -201,6 +243,7 @@ export default function InputView() {
 
         {/* Textarea */}
         <textarea
+          ref={textareaRef}
           value={rawText}
           onChange={(e) => handleTextChange(e.target.value)}
           aria-label="Paste your quiz text here"

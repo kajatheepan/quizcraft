@@ -187,7 +187,7 @@ export default function ResultsView() {
     // Save history once
     if (!savedRef.current) {
       savedRef.current = true;
-      const topic = result.questions[0]?.question.split(" ").slice(0, 4).join(" ") ?? "Quiz";
+      const topic = quiz.title || (result.questions[0]?.question.split(" ").slice(0, 4).join(" ") ?? "Quiz");
       saveHistory({
         id: String(quiz.startTime ?? Date.now()),
         sessionId: String(quiz.startTime ?? Date.now()),
@@ -201,7 +201,7 @@ export default function ResultsView() {
       });
     }
     return () => clearTimeout(t);
-  }, [result, quiz.startTime]);
+  }, [result, quiz.startTime, quiz.title]);
 
   const correct = result?.correct ?? 0;
   const wrong = result?.wrong ?? 0;

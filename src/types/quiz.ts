@@ -37,6 +37,7 @@ export interface Question {
 }
 
 export interface ParseResult {
+  title?: string;
   questions: Question[];
   errors: string[];
 }
@@ -82,6 +83,7 @@ export interface QuizState {
   startTime: number | null;
   settings: QuizSettings;
   answered: boolean;
+  title?: string;
 }
 
 /** Result payload produced when a quiz completes. */
