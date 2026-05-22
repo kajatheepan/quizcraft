@@ -12,7 +12,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
 import type { AILinkSettings, AIProvider } from "@/types/quiz";
-import { Copy, Settings } from "lucide-react";
+import { Copy, Settings, Share2 } from "lucide-react";
 
 type ConfirmAction =
   | { type: "next" }
@@ -452,6 +452,59 @@ export default function QuizView() {
     [quiz.questions]
   );
 
+  const [sharingQuiz, setSharingQuiz] = useState(false);
+
+  const handleShareQuiz = async () => {
+    if (sharingQuiz) return;
+    setSharingQuiz(true);
+    try {
+      const sourceQuestions = quiz.original && quiz.original.length > 0
+        ? quiz.original
+        : quiz.questions;
+      if (!sourceQuestions || sourceQuestions.length === 0) {
+        showToast("Error: No questions found to share.");
+        setSharingQuiz(false);
+        return;
+      }
+
+      // 1. Compress questions
+      const { compressQuiz } = await import("@/lib/compression");
+      const compressed = await compressQuiz(sourceQuestions);
+
+      // 2. Build full sharing URL
+      const baseUrl = window.location.origin;
+      const longUrl = `${baseUrl}/?q=${compressed}`;
+
+      // 3. Shorten URL via our API proxy
+      const response = await fetch("/api/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: longUrl })
+      });
+
+      let shareUrl = longUrl;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.shortUrl) {
+          shareUrl = data.shortUrl;
+        }
+      }
+
+      // 4. Copy to clipboard
+      const copied = await copyToClipboard(shareUrl);
+      if (copied) {
+        showToast("Sharing link copied to clipboard!");
+      } else {
+        showToast("Could not copy link. Try manual selection.");
+      }
+    } catch (err) {
+      console.error("Failed to share quiz:", err);
+      showToast("Error generating sharing link.");
+    } finally {
+      setSharingQuiz(false);
+    }
+  };
+
   const updateDraftAnswer = useCallback((response: string | string[]) => {
     draftAnswerRef.current = response;
   }, []);
@@ -860,13 +913,23 @@ export default function QuizView() {
               </span>
             </div>
             {renderNavigatorGrid()}
-            <div className="mt-4 flex flex-col gap-3 text-sm">
+            <div className="mt-4 flex flex-col gap-3 text-sm border-t border-border pt-4">
               <button
                 type="button"
                 onClick={handleForward}
-                className="text-left text-accent hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                className="text-left text-accent hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-semibold flex items-center justify-between"
               >
-                {forwardLabel}
+                <span>{forwardLabel}</span>
+                <span>→</span>
+              </button>
+              <button
+                type="button"
+                disabled={sharingQuiz}
+                onClick={handleShareQuiz}
+                className="text-left text-secondary hover:text-primary hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                <span>{sharingQuiz ? "Generating link..." : "Share quiz"}</span>
               </button>
             </div>
           </div>
@@ -904,7 +967,22 @@ export default function QuizView() {
               </svg>
             </span>
           </button>
-          {navigatorOpen && <div className="mt-3 max-h-40 overflow-y-auto pr-1">{renderNavigatorGrid()}</div>}
+          {navigatorOpen && (
+            <div className="mt-3 max-h-45 overflow-y-auto pr-1 border-t border-border pt-3">
+              {renderNavigatorGrid()}
+              <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs">
+                <button
+                  type="button"
+                  disabled={sharingQuiz}
+                  onClick={handleShareQuiz}
+                  className="text-secondary hover:text-primary transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  <span>{sharingQuiz ? "Generating link..." : "Share quiz"}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <section className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
