@@ -2,8 +2,10 @@ import { Redis } from "@upstash/redis";
 
 const STARTED_KEY = "stats:quizzes_started";
 const SHARED_KEY = "stats:quizzes_shared";
+const STATS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let redis: Redis | null = null;
+let statsCache: { value: QuizStats; expiresAt: number } | null = null;
 
 function getRedis(): Redis {
   if (redis) return redis;
@@ -29,22 +31,51 @@ export type QuizStats = {
   quizzesShared: number;
 };
 
+function getCachedStats(): QuizStats | null {
+  if (!statsCache) return null;
+  if (Date.now() >= statsCache.expiresAt) {
+    statsCache = null;
+    return null;
+  }
+
+  return statsCache.value;
+}
+
+function setCachedStats(value: QuizStats): void {
+  statsCache = {
+    value,
+    expiresAt: Date.now() + STATS_CACHE_TTL_MS,
+  };
+}
+
+function clearStatsCache(): void {
+  statsCache = null;
+}
+
 export async function incrementQuizzesStarted(): Promise<number> {
+  clearStatsCache();
   return getRedis().incr(STARTED_KEY);
 }
 
 export async function incrementQuizzesShared(): Promise<number> {
+  clearStatsCache();
   return getRedis().incr(SHARED_KEY);
 }
 
 export async function getQuizStats(): Promise<QuizStats> {
+  const cached = getCachedStats();
+  if (cached) return cached;
+
   const [started, shared] = await Promise.all([
     getRedis().get(STARTED_KEY),
     getRedis().get(SHARED_KEY),
   ]);
 
-  return {
+  const stats = {
     quizzesStarted: asCount(started),
     quizzesShared: asCount(shared),
   };
+
+  setCachedStats(stats);
+  return stats;
 }

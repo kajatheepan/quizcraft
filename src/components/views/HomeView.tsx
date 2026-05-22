@@ -165,16 +165,9 @@ export default function HomeView() {
             Generate quiz using AI <span className="text-accent">→</span> Paste it here <span className="text-accent">→</span> Practice immediately
           </p>
 
-          <div className="mb-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold text-secondary">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/85 px-3 py-1.5 shadow-sm">
-              <span className="text-accent">{(stats?.quizzesStarted ?? 0).toLocaleString()}</span>
-              quizzes started
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/85 px-3 py-1.5 shadow-sm">
-              <span className="text-accent">{(stats?.quizzesShared ?? 0).toLocaleString()}</span>
-              quizzes shared
-            </span>
-          </div>
+          <p className="mb-6 text-sm font-medium text-secondary">
+            {(stats?.quizzesStarted ?? 0).toLocaleString()} quizzes started and {(stats?.quizzesShared ?? 0).toLocaleString()} shared.
+          </p>
 
           <button
             type="button"

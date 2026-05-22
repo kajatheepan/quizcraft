@@ -41,4 +41,13 @@ describe("Redis stats store", () => {
       quizzesShared: 3201,
     });
   });
+
+  it("reuses the cached stats on repeated reads", async () => {
+    redisMocks.get.mockResolvedValueOnce(11).mockResolvedValueOnce(3);
+    const { getQuizStats } = await loadStatsStore();
+
+    await expect(getQuizStats()).resolves.toEqual({ quizzesStarted: 11, quizzesShared: 3 });
+    await expect(getQuizStats()).resolves.toEqual({ quizzesStarted: 11, quizzesShared: 3 });
+    expect(redisMocks.get).toHaveBeenCalledTimes(2);
+  });
 });
