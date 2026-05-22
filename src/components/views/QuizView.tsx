@@ -486,7 +486,7 @@ export default function QuizView() {
         return;
       }
 
-      const { url, cacheHit } = await getShareLinkForQuiz(sourceQuestions);
+      const { url, cacheHit } = await getShareLinkForQuiz(sourceQuestions, quiz.title);
       await waitForCachedShareLinkAnimation(cacheHit);
       const copied = await copyToClipboard(url);
       if (copied) {

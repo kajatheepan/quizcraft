@@ -77,7 +77,7 @@ export default function HomeView() {
   };
 
 
-  const handleShareQuiz = async (id: string, questions: Question[]) => {
+  const handleShareQuiz = async (id: string, questions: Question[], title?: string) => {
     if (sharingId) return;
     if (!questions || questions.length === 0) {
       showToast("Error: No questions found to share.");
@@ -85,7 +85,7 @@ export default function HomeView() {
     }
     setSharingId(id);
     try {
-      const { url, cacheHit } = await getShareLinkForQuiz(questions);
+      const { url, cacheHit } = await getShareLinkForQuiz(questions, title);
       await waitForCachedShareLinkAnimation(cacheHit);
       const copied = await copyToClipboard(url);
       if (copied) {
@@ -236,7 +236,7 @@ export default function HomeView() {
                   const questions = latestSession.quiz.original.length > 0
                     ? latestSession.quiz.original
                     : latestSession.quiz.questions;
-                  handleShareQuiz(latestSession.id, questions);
+                  handleShareQuiz(latestSession.id, questions, latestSession.title);
                 }}
                 className="inline-flex items-center justify-center gap-1.5 py-2.5 px-4 border border-border rounded-lg text-sm font-semibold text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/5 transition-all disabled:opacity-50"
                 title="Share this quiz"
@@ -343,7 +343,7 @@ export default function HomeView() {
                                 const questions = session.quiz.original.length > 0
                                   ? session.quiz.original
                                   : session.quiz.questions;
-                                handleShareQuiz(session.id, questions);
+                                handleShareQuiz(session.id, questions, session.title);
                               }}
                               className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
                               title="Share quiz"
@@ -405,7 +405,7 @@ export default function HomeView() {
                               const questions = session.quiz.original.length > 0
                                 ? session.quiz.original
                                 : session.quiz.questions;
-                              handleShareQuiz(session.id, questions);
+                              handleShareQuiz(session.id, questions, session.title);
                             }}
                             className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
                             title="Share quiz"
@@ -486,7 +486,7 @@ export default function HomeView() {
                                 disabled={!!sharingId}
                                 onClick={() => {
                                   if (entry.result) {
-                                    handleShareQuiz(entry.id ?? entry.date, entry.result.questions);
+                                    handleShareQuiz(entry.id ?? entry.date, entry.result.questions, entry.topic);
                                   }
                                 }}
                                 className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
@@ -541,7 +541,7 @@ export default function HomeView() {
                               disabled={!!sharingId}
                               onClick={() => {
                                 if (entry.result) {
-                                  handleShareQuiz(entry.id ?? entry.date, entry.result.questions);
+                                  handleShareQuiz(entry.id ?? entry.date, entry.result.questions, entry.topic);
                                 }
                               }}
                               className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
