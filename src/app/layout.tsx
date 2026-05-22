@@ -14,7 +14,7 @@ function getSiteUrl() {
 }
 
 const siteUrl = getSiteUrl();
-const ogImageUrl = `${siteUrl}/og-image.jpg`;
+const ogImageUrl = new URL("/og-image.jpg", siteUrl).toString();
 const siteDescription =
   "Paste AI-generated quizzes, practice with instant feedback, review mistakes, and study faster with QuizCraft Plus.";
 
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
         url: ogImageUrl,
         width: 1200,
         height: 630,
-        type: "image/png",
+        type: "image/jpeg",
         alt: "QuizCraft Plus - Practice AI generated quizzes",
       },
     ],

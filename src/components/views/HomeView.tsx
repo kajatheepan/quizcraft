@@ -165,9 +165,19 @@ export default function HomeView() {
             Generate quiz using AI <span className="text-accent">→</span> Paste it here <span className="text-accent">→</span> Practice immediately
           </p>
 
-          <p className="mb-6 text-sm font-medium text-secondary">
-            {(stats?.quizzesStarted ?? 0).toLocaleString()} quizzes started and {(stats?.quizzesShared ?? 0).toLocaleString()} shared.
-          </p>
+          <div className="mb-6 inline-flex items-center gap-3 rounded-2xl border border-border bg-surface/80 px-4 py-3 shadow-sm backdrop-blur-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div className="text-left">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-secondary">
+                Community activity
+              </p>
+              <p className="text-sm font-medium text-primary">
+                {(stats?.quizzesStarted ?? 0).toLocaleString()} started · {(stats?.quizzesShared ?? 0).toLocaleString()} shared
+              </p>
+            </div>
+          </div>
 
           <button
             type="button"
