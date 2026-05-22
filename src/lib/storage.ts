@@ -65,6 +65,7 @@ function sanitizeQuizState(value: unknown): QuizState | null {
     startTime: typeof value.startTime === "number" && Number.isFinite(value.startTime) ? value.startTime : null,
     settings: sanitizeQuizSettings(value.settings),
     answered: typeof value.answered === "boolean" ? value.answered : false,
+    title: safeString(value.title) || undefined,
   };
 }
 
@@ -124,7 +125,7 @@ function sanitizeSessions(value: unknown): QuizSession[] {
     const status = item.status === "completed" ? "completed" : "in-progress";
     const now = new Date().toISOString();
     return [{
-      id: safeString(item.id, String(Date.now())),
+      id: safeString(item.id, quiz.startTime !== null ? String(quiz.startTime) : safeString(item.createdAt, String(Date.now()))),
       title: safeString(item.title, "Saved quiz"),
       createdAt: safeString(item.createdAt, now),
       updatedAt: safeString(item.updatedAt, now),

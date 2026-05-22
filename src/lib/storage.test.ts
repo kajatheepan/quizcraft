@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { STORAGE_KEY } from "@/lib/constants";
-import { getInProgressSessions, getThemeMode, saveThemeMode } from "@/lib/storage";
+import { getActiveSession, getInProgressSessions, getThemeMode, saveThemeMode } from "@/lib/storage";
 import type { Question, QuizSession } from "@/types/quiz";
 
 describe("theme mode persistence", () => {
@@ -97,5 +97,16 @@ describe("saved quiz sessions", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessions: [activeSession] }));
 
     expect(getInProgressSessions()).toHaveLength(1);
+  });
+
+  it("preserves the quiz title when rehydrating a saved active session", () => {
+    const activeSession = sessionWithQuestions([
+      { ...baseQuestion, status: "unseen" },
+    ]);
+    activeSession.quiz.title = "Transport Layer Protocol Analysis";
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ activeSession }));
+
+    expect(getActiveSession()?.quiz.title).toBe("Transport Layer Protocol Analysis");
   });
 });
