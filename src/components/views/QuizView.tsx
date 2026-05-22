@@ -9,7 +9,7 @@ import { useAppStore } from "@/store/useAppStore";
 import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
-import { getShareLinkForQuiz } from "@/lib/shareLinks";
+import { getShareLinkForQuiz, waitForCachedShareLinkAnimation } from "@/lib/shareLinks";
 import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
 import type { AILinkSettings, AIProvider } from "@/types/quiz";
@@ -487,6 +487,7 @@ export default function QuizView() {
       }
 
       const { url, cacheHit } = await getShareLinkForQuiz(sourceQuestions);
+      await waitForCachedShareLinkAnimation(cacheHit);
       const copied = await copyToClipboard(url);
       if (copied) {
         showToast(cacheHit ? "Cached sharing link copied!" : "Sharing link copied to clipboard!");

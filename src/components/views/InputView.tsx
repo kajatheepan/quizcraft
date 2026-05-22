@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { parseQuiz } from "@/lib/parser";
 import { copyToClipboard } from "@/lib/clipboard";
-import { getShareLinkForQuiz } from "@/lib/shareLinks";
+import { getShareLinkForQuiz, waitForCachedShareLinkAnimation } from "@/lib/shareLinks";
 import {
   clearLastQuizText,
   getLastQuizText,
@@ -172,14 +172,15 @@ export default function InputView() {
     if (!isValid || sharing) return;
     setSharing(true);
     try {
-      const { questions } = parseQuiz(rawText);
+      const { title, questions } = parseQuiz(rawText);
       if (questions.length === 0) {
         showToast("Error: No questions found to share.");
         setSharing(false);
         return;
       }
 
-      const { url, cacheHit } = await getShareLinkForQuiz(questions);
+      const { url, cacheHit } = await getShareLinkForQuiz(questions, title);
+      await waitForCachedShareLinkAnimation(cacheHit);
       const copied = await copyToClipboard(url);
       if (copied) {
         showToast(cacheHit ? "Cached sharing link copied!" : "Sharing link copied to clipboard!");

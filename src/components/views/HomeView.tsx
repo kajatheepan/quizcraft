@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { copyToClipboard } from "@/lib/clipboard";
-import { getShareLinkForQuiz } from "@/lib/shareLinks";
+import { getShareLinkForQuiz, waitForCachedShareLinkAnimation } from "@/lib/shareLinks";
 import { clearHistory, getHistory, getInProgressSessions } from "@/lib/storage";
 import type { HistoryEntry, QuizSession, Question } from "@/types/quiz";
 import {
@@ -63,6 +63,7 @@ export default function HomeView() {
     setSharingId(id);
     try {
       const { url, cacheHit } = await getShareLinkForQuiz(questions);
+      await waitForCachedShareLinkAnimation(cacheHit);
       const copied = await copyToClipboard(url);
       if (copied) {
         showToast(cacheHit ? "Cached sharing link copied!" : "Sharing link copied to clipboard!");

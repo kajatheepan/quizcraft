@@ -5,7 +5,7 @@ import { useAppStore } from "@/store/useAppStore";
 import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
-import { getShareLinkForQuiz } from "@/lib/shareLinks";
+import { getShareLinkForQuiz, waitForCachedShareLinkAnimation } from "@/lib/shareLinks";
 import { getAILinkSettings } from "@/lib/storage";
 import { saveHistory } from "@/lib/storage";
 import { getScoreMessage } from "@/lib/quizEngine";
@@ -82,7 +82,6 @@ const ReviewItem = memo(function ReviewItem({
     }
     return String(question.userAnswer);
   };
-
   const getCorrectDisplay = () => {
     if (Array.isArray(question.answer)) {
       return question.answer.map((answer, itemIndex) => `${itemIndex + 1}. ${formatAnswer(answer)}`).join(" · ");
@@ -267,10 +266,14 @@ export default function ResultsView() {
   const message = getScoreMessage(percentage);
 
   const handleShareScore = async () => {
-    const text = `I scored ${percentage}% on a quiz! (${correct}/${total} correct) — QuizCraft Plus`;
-    const copied = await copyToClipboard(text);
+    // Build a stateless score URL with all params for OG image generation
+    const siteOrigin = typeof window !== "undefined" ? window.location.origin : "";
+    const titleEncoded = encodeURIComponent(quiz.title || (result?.questions[0]?.question.slice(0, 60) ?? "Quiz"));
+    const scoreUrl = `${siteOrigin}/results/score?t=${titleEncoded}&s=${correct}&n=${total}&pct=${percentage}`;
+
+    const copied = await copyToClipboard(scoreUrl);
     if (copied) {
-      showToast("Score copied to clipboard!");
+      showToast("Score link copied to clipboard!");
       return;
     }
     showToast("Copy failed. Select the text and copy manually.");
@@ -289,7 +292,8 @@ export default function ResultsView() {
         return;
       }
 
-      const { url, cacheHit } = await getShareLinkForQuiz(sourceQuestions);
+      const { url, cacheHit } = await getShareLinkForQuiz(sourceQuestions, quiz.title);
+      await waitForCachedShareLinkAnimation(cacheHit);
       const copied = await copyToClipboard(url);
       if (copied) {
         showToast(cacheHit ? "Cached sharing link copied!" : "Sharing link copied to clipboard!");

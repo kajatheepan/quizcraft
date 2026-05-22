@@ -43,7 +43,7 @@ describe("quiz share link cache", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/share", expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({ questions }),
+      body: JSON.stringify({ questions, title: null }),
     }));
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
