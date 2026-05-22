@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSharedQuiz } from "@/lib/server/shareStore";
+import { incrementQuizzesShared } from "@/lib/server/statsStore";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ export async function POST(request: Request) {
     }
 
     const share = await createSharedQuiz(questions, typeof title === "string" ? title : undefined);
+    await incrementQuizzesShared().catch((error) => {
+      console.error("Share counter increment failed:", error);
+    });
     return NextResponse.json(share);
   } catch (error: any) {
     console.error("Share API route error:", error);

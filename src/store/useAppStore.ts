@@ -420,8 +420,12 @@ export function useAppStore() {
   const navigate = useCallback((view: ViewName) => dispatch({ type: "NAVIGATE", view }), []);
   const navigateBack = useCallback((fallback?: ViewName) => dispatch({ type: "NAVIGATE_BACK", fallback }), []);
 
-  const startQuiz = useCallback((questions: Question[], settings: QuizSettings, title?: string) =>
-    dispatch({ type: "START_QUIZ", questions, settings, title }), []);
+  const startQuiz = useCallback((questions: Question[], settings: QuizSettings, title?: string) => {
+    dispatch({ type: "START_QUIZ", questions, settings, title });
+    // Fire-and-forget: increment the global quiz counter. Never awaited so it
+    // never delays or blocks the quiz starting.
+    fetch("/api/track", { method: "POST" }).catch(() => {});
+  }, []);
 
   const answerQuestion = useCallback((response: string | string[]) =>
     dispatch({ type: "ANSWER_QUESTION", response }), []);

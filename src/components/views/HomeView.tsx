@@ -25,6 +25,7 @@ export default function HomeView() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [inProgressSessions, setInProgressSessions] = useState<QuizSession[]>([]);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ quizzesStarted: number; quizzesShared: number } | null>(null);
   const currentView = state.view;
 
   const refreshSavedData = () => {
@@ -36,6 +37,28 @@ export default function HomeView() {
     if (currentView === "home") {
       refreshSavedData();
     }
+  }, [currentView]);
+
+  useEffect(() => {
+    if (currentView !== "home") return;
+
+    const controller = new AbortController();
+    fetch("/api/stats", { signal: controller.signal })
+      .then((response) => response.json())
+      .then((data: { quizzesStarted?: number; quizzesShared?: number }) => {
+        if (controller.signal.aborted) return;
+        setStats({
+          quizzesStarted: typeof data.quizzesStarted === "number" ? data.quizzesStarted : 0,
+          quizzesShared: typeof data.quizzesShared === "number" ? data.quizzesShared : 0,
+        });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setStats({ quizzesStarted: 0, quizzesShared: 0 });
+        }
+      });
+
+    return () => controller.abort();
   }, [currentView]);
 
   const handleDiscardSavedQuiz = (sessionId: string) => {
@@ -141,6 +164,17 @@ export default function HomeView() {
           <p className="mb-6 text-sm font-medium text-primary/90">
             Generate quiz using AI <span className="text-accent">→</span> Paste it here <span className="text-accent">→</span> Practice immediately
           </p>
+
+          <div className="mb-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold text-secondary">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/85 px-3 py-1.5 shadow-sm">
+              <span className="text-accent">{(stats?.quizzesStarted ?? 0).toLocaleString()}</span>
+              quizzes started
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/85 px-3 py-1.5 shadow-sm">
+              <span className="text-accent">{(stats?.quizzesShared ?? 0).toLocaleString()}</span>
+              quizzes shared
+            </span>
+          </div>
 
           <button
             type="button"

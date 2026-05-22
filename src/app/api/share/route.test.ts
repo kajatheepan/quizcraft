@@ -4,8 +4,16 @@ const shareStoreMocks = vi.hoisted(() => ({
   createSharedQuiz: vi.fn(),
 }));
 
+const statsStoreMocks = vi.hoisted(() => ({
+  incrementQuizzesShared: vi.fn(),
+}));
+
 vi.mock("@/lib/server/shareStore", () => ({
   createSharedQuiz: shareStoreMocks.createSharedQuiz,
+}));
+
+vi.mock("@/lib/server/statsStore", () => ({
+  incrementQuizzesShared: statsStoreMocks.incrementQuizzesShared,
 }));
 
 async function loadRoute() {
@@ -16,6 +24,7 @@ async function loadRoute() {
 describe("POST /api/share", () => {
   beforeEach(() => {
     shareStoreMocks.createSharedQuiz.mockReset();
+    statsStoreMocks.incrementQuizzesShared.mockReset();
   });
 
   it("rejects empty question payloads", async () => {
@@ -35,6 +44,7 @@ describe("POST /api/share", () => {
       shareId: "abc1234567890_-x",
       shareUrl: "https://quizcraft.example/share/abc1234567890_-x",
     });
+    statsStoreMocks.incrementQuizzesShared.mockResolvedValue(1);
     const { POST } = await loadRoute();
 
     const response = await POST(new Request("http://localhost/api/share", {
@@ -46,5 +56,6 @@ describe("POST /api/share", () => {
     expect(response.status).toBe(200);
     expect(data.shareUrl).toBe("https://quizcraft.example/share/abc1234567890_-x");
     expect(shareStoreMocks.createSharedQuiz).toHaveBeenCalledTimes(1);
+    expect(statsStoreMocks.incrementQuizzesShared).toHaveBeenCalledTimes(1);
   });
 });
