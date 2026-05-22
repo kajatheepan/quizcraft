@@ -26,6 +26,13 @@ export default function HomeView() {
   const [inProgressSessions, setInProgressSessions] = useState<QuizSession[]>([]);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [stats, setStats] = useState<{ quizzesStarted: number; quizzesShared: number } | null>(null);
+  const [dialog, setDialog] = useState<{
+    title: string;
+    description: string;
+    confirmLabel: string;
+    tone: "danger" | "warning";
+    onConfirm: () => void;
+  } | null>(null);
   const currentView = state.view;
 
   const refreshSavedData = () => {
@@ -62,10 +69,17 @@ export default function HomeView() {
   }, [currentView]);
 
   const handleDiscardSavedQuiz = (sessionId: string) => {
-    if (!window.confirm("Discard this saved quiz session? Your progress will be lost.")) return;
-    discardSavedQuiz(sessionId);
-    refreshSavedData();
-    showToast("Saved quiz discarded");
+    setDialog({
+      title: "Discard saved quiz?",
+      description: "This will remove the saved progress for this quiz. The session cannot be restored.",
+      confirmLabel: "Discard quiz",
+      tone: "danger",
+      onConfirm: () => {
+        discardSavedQuiz(sessionId);
+        refreshSavedData();
+        showToast("Saved quiz discarded");
+      },
+    });
   };
 
   const handleReviewFinishedQuiz = (entry: HistoryEntry) => {
@@ -102,10 +116,17 @@ export default function HomeView() {
   };
 
   const handleClearHistory = () => {
-    if (!window.confirm("Clear completed quiz history? Saved in-progress quizzes will stay.")) return;
-    clearHistory();
-    refreshSavedData();
-    showToast("History cleared");
+    setDialog({
+      title: "Clear completed history?",
+      description: "This removes completed quiz history only. In-progress quizzes will stay saved.",
+      confirmLabel: "Clear history",
+      tone: "warning",
+      onConfirm: () => {
+        clearHistory();
+        refreshSavedData();
+        showToast("History cleared");
+      },
+    });
   };
 
   const formatSavedTime = (value: string) => {
@@ -140,6 +161,7 @@ export default function HomeView() {
   );
 
   return (
+    <>
     <div className="home-gradient flex flex-col justify-center items-center w-full min-h-[calc(100vh-52px)] px-4 py-12">
       <div className="w-full max-w-content-lg">
         <div className="max-w-content-sm mx-auto flex flex-col items-center text-center mb-10">
@@ -564,6 +586,73 @@ export default function HomeView() {
         </div>
       </div>
     </div>
+
+    {dialog && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-bg/70 px-4 backdrop-blur-sm"
+        role="presentation"
+        onClick={() => setDialog(null)}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-description"
+          className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-card"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={[
+                "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                dialog.tone === "danger"
+                  ? "border-error/20 bg-error/10 text-error"
+                  : "border-warning/20 bg-warning/10 text-warning",
+              ].join(" ")}
+              aria-hidden="true"
+            >
+              <Trash2 className="h-5 w-5" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h3 id="confirm-dialog-title" className="text-lg font-semibold text-primary">
+                {dialog.title}
+              </h3>
+              <p id="confirm-dialog-description" className="mt-2 text-sm leading-relaxed text-secondary">
+                {dialog.description}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setDialog(null)}
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-bg px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:border-secondary hover:bg-bg/80"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const action = dialog.onConfirm;
+                setDialog(null);
+                action();
+              }}
+              className={[
+                "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+                dialog.tone === "danger"
+                  ? "bg-error hover:bg-error/90"
+                  : "bg-accent text-white hover:opacity-90",
+              ].join(" ")}
+            >
+              {dialog.confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
