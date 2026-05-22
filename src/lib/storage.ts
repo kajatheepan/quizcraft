@@ -163,7 +163,7 @@ function sanitizeShareLinks(value: unknown): Record<string, CachedShareLink> {
     links[fingerprint] = {
       url,
       createdAt,
-      source: item.source === "short" ? "short" : "long",
+      source: item.source === "redis" || item.source === "short" ? item.source : "long",
     };
     return links;
   }, {});

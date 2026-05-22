@@ -63,7 +63,7 @@ export interface AILinkSettings {
   claude: AIProviderLinkConfig;
 }
 
-export type ShareLinkSource = "short" | "long";
+export type ShareLinkSource = "redis" | "short" | "long";
 
 export interface CachedShareLink {
   url: string;

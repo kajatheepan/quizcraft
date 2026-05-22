@@ -17,10 +17,10 @@ const questions: Question[] = [
   },
 ];
 
-function mockShorten(url = "https://quizcraft.s.gy/abc") {
+function mockShare(url = "https://quizcraft.test/share/abc1234567890_-x") {
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
-    json: vi.fn().mockResolvedValue({ shortUrl: url }),
+    json: vi.fn().mockResolvedValue({ shareId: "abc1234567890_-x", shareUrl: url }),
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
@@ -33,27 +33,51 @@ describe("quiz share link cache", () => {
   });
 
   it("generates and stores a share link on first use", async () => {
-    const fetchMock = mockShorten();
+    const fetchMock = mockShare();
 
     const result = await getShareLinkForQuiz(questions);
 
-    expect(result.url).toBe("https://quizcraft.s.gy/abc");
+    expect(result.url).toBe("https://quizcraft.test/share/abc1234567890_-x");
     expect(result.cacheHit).toBe(false);
-    expect(result.source).toBe("short");
+    expect(result.source).toBe("redis");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/share", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ questions }),
+    }));
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-    expect(stored.shareLinks[result.fingerprint].url).toBe("https://quizcraft.s.gy/abc");
+    expect(stored.shareLinks[result.fingerprint].url).toBe("https://quizcraft.test/share/abc1234567890_-x");
   });
 
   it("reuses a cached link without calling the API again", async () => {
-    const fetchMock = mockShorten("https://quizcraft.s.gy/cached");
+    const fetchMock = mockShare("https://quizcraft.test/share/cached1234567890");
 
     await getShareLinkForQuiz(questions);
     const second = await getShareLinkForQuiz(questions);
 
-    expect(second.url).toBe("https://quizcraft.s.gy/cached");
+    expect(second.url).toBe("https://quizcraft.test/share/cached1234567890");
     expect(second.cacheHit).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores old non-Redis cached links and creates a Redis share link", async () => {
+    const fingerprint = createQuizFingerprint(questions);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      shareLinks: {
+        [fingerprint]: {
+          url: "https://old-shortener.example/abc",
+          createdAt: "2026-05-22T00:00:00.000Z",
+          source: "short",
+        },
+      },
+    }));
+    const fetchMock = mockShare();
+
+    const result = await getShareLinkForQuiz(questions);
+
+    expect(result.source).toBe("redis");
+    expect(result.url).toBe("https://quizcraft.test/share/abc1234567890_-x");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -77,7 +101,7 @@ describe("quiz share link cache", () => {
     expect(createQuizFingerprint(changedQuestions)).not.toBe(createQuizFingerprint(questions));
   });
 
-  it("does not cache when the shortening request fails", async () => {
+  it("does not cache when the share request fails", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("network failed"));
     vi.stubGlobal("fetch", fetchMock);
 

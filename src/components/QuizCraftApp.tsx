@@ -77,14 +77,19 @@ export default function QuizCraftApp() {
   const { state, startQuiz, showToast } = useAppStore();
   const currentView = state.view;
   const [loadingShared, setLoadingShared] = useState(false);
+  const loadedSharedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const params = new URLSearchParams(window.location.search);
     const compressed = params.get("q");
+    const shareMatch = window.location.pathname.match(/^\/share\/([A-Za-z0-9_-]{16})$/);
+    const shareId = shareMatch?.[1] ?? null;
 
     if (compressed) {
+      if (loadedSharedRef.current === `q:${compressed}`) return;
+      loadedSharedRef.current = `q:${compressed}`;
       setLoadingShared(true);
       const timer = setTimeout(() => {
         import("@/lib/compression")
@@ -104,6 +109,38 @@ export default function QuizCraftApp() {
           .finally(() => {
             const newUrl = window.location.pathname + window.location.hash;
             window.history.replaceState({}, document.title, newUrl);
+            setLoadingShared(false);
+          });
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+
+    if (shareId) {
+      if (loadedSharedRef.current === `id:${shareId}`) return;
+      loadedSharedRef.current = `id:${shareId}`;
+      setLoadingShared(true);
+      const timer = setTimeout(() => {
+        fetch(`/api/share/${shareId}`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Shared quiz not found");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (Array.isArray(data.questions) && data.questions.length > 0) {
+              startQuiz(data.questions, state.settings);
+              showToast("Shared quiz loaded successfully!");
+            } else {
+              showToast("Shared quiz has no questions.");
+            }
+          })
+          .catch((err) => {
+            console.error("Shared quiz lookup failed:", err);
+            showToast("Shared quiz link is missing or expired.");
+          })
+          .finally(() => {
             setLoadingShared(false);
           });
       }, 300);

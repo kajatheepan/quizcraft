@@ -1,4 +1,4 @@
-import { compressQuiz, minifyQuiz } from "@/lib/compression";
+import { minifyQuiz } from "@/lib/compression";
 import { getCachedShareLink, saveCachedShareLink } from "@/lib/storage";
 import type { CachedShareLink, Question } from "@/types/quiz";
 
@@ -27,18 +27,14 @@ export async function getShareLinkForQuiz(questions: Question[]): Promise<ShareL
 
   const fingerprint = createQuizFingerprint(questions);
   const cached = getCachedShareLink(fingerprint);
-  if (cached) {
+  if (cached?.source === "redis") {
     return { ...cached, fingerprint, cacheHit: true };
   }
 
-  const compressed = await compressQuiz(questions);
-  const baseUrl = window.location.origin;
-  const longUrl = `${baseUrl}/?q=${compressed}`;
-
-  const response = await fetch("/api/shorten", {
+  const response = await fetch("/api/share", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: longUrl })
+    body: JSON.stringify({ questions })
   });
 
   if (!response.ok) {
@@ -46,11 +42,14 @@ export async function getShareLinkForQuiz(questions: Question[]): Promise<ShareL
   }
 
   const data = await response.json();
-  const url = typeof data.shortUrl === "string" && data.shortUrl ? data.shortUrl : longUrl;
+  if (typeof data.shareUrl !== "string" || !data.shareUrl) {
+    throw new Error("Share API returned an invalid link");
+  }
+
   const link: CachedShareLink = {
-    url,
+    url: data.shareUrl,
     createdAt: new Date().toISOString(),
-    source: url === longUrl ? "long" : "short",
+    source: "redis",
   };
 
   saveCachedShareLink(fingerprint, link);
