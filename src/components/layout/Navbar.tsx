@@ -55,7 +55,10 @@ export default function Navbar() {
     return () => media.removeEventListener("change", handleSystemChange);
   }, []);
 
-  const handleLogo = () => {
+  const goHome = () => {
+    if (typeof window !== "undefined" && /^\/share\/[A-Za-z0-9_-]{16}$/.test(window.location.pathname)) {
+      window.history.replaceState({}, document.title, "/");
+    }
     navigate("home");
   };
 
@@ -77,7 +80,7 @@ export default function Navbar() {
         {inQuiz && (
           <button
             type="button"
-            onClick={() => navigate("home")}
+            onClick={goHome}
             className="h-8 w-8 rounded-md border border-border bg-surface flex items-center justify-center text-secondary transition-colors duration-[150ms] hover:text-primary hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-anim"
             aria-label="Back to home"
           >
@@ -89,7 +92,7 @@ export default function Navbar() {
         {/* Logo */}
         <button
           type="button"
-          onClick={handleLogo}
+          onClick={goHome}
           className="inline-flex items-center gap-2 text-[15px] select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-sm"
           aria-label="QuizCraft Plus — go to home"
         >

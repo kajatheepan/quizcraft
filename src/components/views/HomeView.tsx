@@ -171,10 +171,10 @@ export default function HomeView() {
             </div>
             <div className="text-left">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-secondary">
-                Community activity
+                QuizCraft Plus Stats
               </p>
               <p className="text-sm font-medium text-primary">
-                {(stats?.quizzesStarted ?? 0).toLocaleString()} started · {(stats?.quizzesShared ?? 0).toLocaleString()} shared
+                {(stats?.quizzesStarted ?? 0).toLocaleString()} quizes started · {(stats?.quizzesShared ?? 0).toLocaleString()} shared
               </p>
             </div>
           </div>
