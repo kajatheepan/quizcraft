@@ -10,6 +10,7 @@ interface StoredSharePayload {
   v: 1;
   q: ReturnType<typeof minifyQuiz>;
   createdAt: string;
+  title?: string;
 }
 
 let redis: Redis | null = null;
@@ -39,7 +40,7 @@ export function isValidShareId(id: string): boolean {
   return SHARE_ID_REGEX.test(id);
 }
 
-export async function createSharedQuiz(questions: Question[]) {
+export async function createSharedQuiz(questions: Question[], title?: string) {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error("No questions found to share");
   }
@@ -48,6 +49,7 @@ export async function createSharedQuiz(questions: Question[]) {
     v: 1,
     q: minifyQuiz(questions),
     createdAt: new Date().toISOString(),
+    title: title?.trim() || undefined,
   };
 
   const client = getRedis();
@@ -62,6 +64,7 @@ export async function createSharedQuiz(questions: Question[]) {
       return {
         shareId,
         shareUrl: `${getPublicSiteUrl()}/share/${shareId}`,
+        title: payload.title,
       };
     }
   }
@@ -78,4 +81,23 @@ export async function getSharedQuiz(shareId: string): Promise<Question[] | null>
   }
 
   return expandQuiz(payload.q);
+}
+
+/** Returns lightweight metadata (title + question count) without fully decompressing.
+ *  Used for OG metadata generation in the share page's generateMetadata().
+ */
+export async function getSharedQuizMeta(
+  shareId: string
+): Promise<{ title: string; count: number } | null> {
+  if (!isValidShareId(shareId)) return null;
+
+  const payload = await getRedis().get<StoredSharePayload>(`share:${shareId}`);
+  if (!payload || payload.v !== 1 || !Array.isArray(payload.q)) {
+    return null;
+  }
+
+  return {
+    title: payload.title ?? "",
+    count: payload.q.length,
+  };
 }
