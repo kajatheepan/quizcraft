@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { clearHistory, getHistory, getInProgressSessions } from "@/lib/storage";
-import type { HistoryEntry, QuizSession } from "@/types/quiz";
+import type { HistoryEntry, QuizSession, Question } from "@/types/quiz";
 import {
   Play,
   Eye,
@@ -14,13 +14,15 @@ import {
   BookOpen,
   CheckCircle,
   Award,
-  Sparkles
+  Sparkles,
+  Share2
 } from "lucide-react";
 
 export default function HomeView() {
   const { state, navigate, restoreSavedQuiz, discardSavedQuiz, loadResult, showToast } = useAppStore();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [inProgressSessions, setInProgressSessions] = useState<QuizSession[]>([]);
+  const [sharingId, setSharingId] = useState<string | null>(null);
   const currentView = state.view;
 
   const refreshSavedData = () => {
@@ -49,6 +51,53 @@ export default function HomeView() {
     loadResult(entry.result);
   };
 
+
+  const handleShareQuiz = async (id: string, questions: Question[]) => {
+    if (sharingId) return;
+    if (!questions || questions.length === 0) {
+      showToast("Error: No questions found to share.");
+      return;
+    }
+    setSharingId(id);
+    try {
+      // 1. Compress questions
+      const { compressQuiz } = await import("@/lib/compression");
+      const compressed = await compressQuiz(questions);
+
+      // 2. Build full sharing URL
+      const baseUrl = window.location.origin;
+      const longUrl = `${baseUrl}/?q=${compressed}`;
+
+      // 3. Shorten URL via our API proxy
+      const response = await fetch("/api/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: longUrl })
+      });
+
+      let shareUrl = longUrl;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.shortUrl) {
+          shareUrl = data.shortUrl;
+        }
+      }
+
+      // 4. Copy to clipboard
+      const { copyToClipboard } = await import("@/lib/clipboard");
+      const copied = await copyToClipboard(shareUrl);
+      if (copied) {
+        showToast("Sharing link copied to clipboard!");
+      } else {
+        showToast("Could not copy link. Try manual selection.");
+      }
+    } catch (err) {
+      console.error("Failed to share quiz:", err);
+      showToast("Error generating sharing link.");
+    } finally {
+      setSharingId(null);
+    }
+  };
 
   const handleClearHistory = () => {
     if (!window.confirm("Clear completed quiz history? Saved in-progress quizzes will stay.")) return;
@@ -169,6 +218,21 @@ export default function HomeView() {
               </button>
               <button
                 type="button"
+                disabled={!!sharingId}
+                onClick={() => {
+                  const questions = latestSession.quiz.original.length > 0
+                    ? latestSession.quiz.original
+                    : latestSession.quiz.questions;
+                  handleShareQuiz(latestSession.id, questions);
+                }}
+                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-4 border border-border rounded-lg text-sm font-semibold text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/5 transition-all disabled:opacity-50"
+                title="Share this quiz"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>{sharingId === latestSession.id ? "Sharing..." : "Share"}</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => handleDiscardSavedQuiz(latestSession.id)}
                 className="inline-flex items-center justify-center gap-1.5 py-2.5 px-4 border border-border rounded-lg text-sm font-semibold text-secondary hover:text-error hover:border-error hover:bg-error/5 transition-all"
               >
@@ -230,50 +294,120 @@ export default function HomeView() {
                   const total = session.quiz.questions.length;
                   const progressPercent = Math.round((current / total) * 100);
                   return (
-                    <div
-                      key={`unfinished-${session.id}`}
-                      className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center p-4 hover:bg-bg/20 transition-colors duration-150"
-                    >
-                      {/* Topic Name */}
-                      <div className="md:col-span-5 flex items-center gap-3 min-w-0">
-                        <BookOpen className="h-4 w-4 text-secondary flex-shrink-0" />
-                        <span className="text-sm font-medium text-primary truncate block" title={session.title}>
-                          {session.title}
-                        </span>
+                    <div key={`session-item-${session.id}`}>
+                      {/* Mobile layout */}
+                      <div className="flex flex-col gap-2.5 p-4 hover:bg-bg/20 transition-colors duration-150 md:hidden">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <BookOpen className="h-4 w-4 text-secondary flex-shrink-0" />
+                          <span className="text-sm font-semibold text-primary truncate" title={session.title}>
+                            {session.title}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2 mt-1">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-3xs font-bold bg-accent/10 text-accent border border-accent/20">
+                                Q{current}/{total}
+                              </span>
+                              <span className="text-2xs text-secondary font-medium">({progressPercent}%)</span>
+                            </div>
+                            <span className="text-3xs text-secondary">{formatSavedTime(session.updatedAt)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => restoreSavedQuiz(session.id)}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-accent text-white rounded-md text-xs font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm"
+                              title="Resume quiz"
+                            >
+                              <Play className="h-3 w-3 fill-current" />
+                              <span>Resume</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!!sharingId}
+                              onClick={() => {
+                                const questions = session.quiz.original.length > 0
+                                  ? session.quiz.original
+                                  : session.quiz.questions;
+                                handleShareQuiz(session.id, questions);
+                              }}
+                              className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
+                              title="Share quiz"
+                            >
+                              <Share2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDiscardSavedQuiz(session.id)}
+                              className="p-1.5 border border-border hover:border-error hover:bg-error/5 rounded-md text-secondary hover:text-error transition-colors"
+                              title="Discard session"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Progress Badge */}
-                      <div className="md:col-span-3 flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-accent/10 text-accent border border-accent/20">
-                          Q{current}/{total}
-                        </span>
-                        <span className="text-xs text-secondary font-medium">({progressPercent}%)</span>
-                      </div>
+                      {/* Desktop layout */}
+                      <div
+                        className="hidden md:grid md:grid-cols-12 gap-3 items-center p-4 hover:bg-bg/20 transition-colors duration-150"
+                      >
+                        {/* Topic Name */}
+                        <div className="md:col-span-4 flex items-center gap-3 min-w-0">
+                          <BookOpen className="h-4 w-4 text-secondary flex-shrink-0" />
+                          <span className="text-sm font-medium text-primary truncate block" title={session.title}>
+                            {session.title}
+                          </span>
+                        </div>
 
-                      {/* Last Saved Date */}
-                      <div className="md:col-span-2 text-xs text-secondary">
-                        {formatSavedTime(session.updatedAt)}
-                      </div>
+                        {/* Progress Badge */}
+                        <div className="md:col-span-3 flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-accent/10 text-accent border border-accent/20">
+                            Q{current}/{total}
+                          </span>
+                          <span className="text-xs text-secondary font-medium">({progressPercent}%)</span>
+                        </div>
 
-                      {/* Row actions */}
-                      <div className="md:col-span-2 flex justify-end items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => restoreSavedQuiz(session.id)}
-                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-accent text-white rounded-md text-xs font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm"
-                          title="Resume quiz"
-                        >
-                          <Play className="h-3 w-3 fill-current" />
-                          <span>Resume</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDiscardSavedQuiz(session.id)}
-                          className="p-1.5 border border-border hover:border-error hover:bg-error/5 rounded-md text-secondary hover:text-error transition-colors"
-                          title="Discard session"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {/* Last Saved Date */}
+                        <div className="md:col-span-2 text-xs text-secondary">
+                          {formatSavedTime(session.updatedAt)}
+                        </div>
+
+                        {/* Row actions */}
+                        <div className="md:col-span-3 flex justify-end items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => restoreSavedQuiz(session.id)}
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-accent text-white rounded-md text-xs font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm"
+                            title="Resume quiz"
+                          >
+                            <Play className="h-3 w-3 fill-current" />
+                            <span>Resume</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!!sharingId}
+                            onClick={() => {
+                              const questions = session.quiz.original.length > 0
+                                ? session.quiz.original
+                                : session.quiz.questions;
+                              handleShareQuiz(session.id, questions);
+                            }}
+                            className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
+                            title="Share quiz"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDiscardSavedQuiz(session.id)}
+                            className="p-1.5 border border-border hover:border-error hover:bg-error/5 rounded-md text-secondary hover:text-error transition-colors"
+                            title="Discard session"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -302,43 +436,108 @@ export default function HomeView() {
               <div className="flex flex-col border border-border bg-surface rounded-xl divide-y divide-border overflow-hidden shadow-card">
                 {sortedHistory.map((entry, index) => {
                   const scorePercent = entry.percentage;
+                  const itemId = entry.id ?? `${entry.date}-${index}`;
                   return (
-                    <div
-                      key={`finished-${entry.id ?? `${entry.date}-${index}`}`}
-                      className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center p-4 hover:bg-bg/20 transition-colors duration-150"
-                    >
-                      {/* Topic Name */}
-                      <div className="md:col-span-5 flex items-center gap-3 min-w-0">
-                        <CheckCircle className="h-4 w-4 text-success flex-shrink-0" />
-                        <span className="text-sm font-medium text-primary truncate block" title={entry.topic}>
-                          {entry.topic}
-                        </span>
+                    <div key={`history-item-${itemId}`}>
+                      {/* Mobile layout */}
+                      <div className="flex flex-col gap-2.5 p-4 hover:bg-bg/20 transition-colors duration-150 md:hidden">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <CheckCircle className="h-4 w-4 text-success flex-shrink-0" />
+                          <span className="text-sm font-semibold text-primary truncate" title={entry.topic}>
+                            {entry.topic}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2 mt-1">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`inline-flex px-1.5 py-0.5 rounded-full text-3xs font-bold ${getScoreBadgeClass(scorePercent)}`}>
+                                {scorePercent}%
+                              </span>
+                              <span className="text-2xs text-secondary font-medium">({entry.score}/{entry.total})</span>
+                            </div>
+                            <span className="text-3xs text-secondary">{formatSavedTime(entry.completedAt ?? entry.date)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleReviewFinishedQuiz(entry)}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 border border-border bg-surface hover:bg-bg/50 rounded-md text-xs font-semibold text-primary transition-all duration-150 shadow-sm"
+                              title="Review results"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              <span>Review</span>
+                            </button>
+                            {entry.result && (
+                              <button
+                                type="button"
+                                disabled={!!sharingId}
+                                onClick={() => {
+                                  if (entry.result) {
+                                    handleShareQuiz(entry.id ?? entry.date, entry.result.questions);
+                                  }
+                                }}
+                                className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
+                                title="Share quiz"
+                              >
+                                <Share2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Color Coded Score Badges */}
-                      <div className="md:col-span-3 flex items-center gap-2">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-bold ${getScoreBadgeClass(scorePercent)}`}>
-                          {scorePercent}%
-                        </span>
-                        <span className="text-xs text-secondary font-medium">({entry.score}/{entry.total} correct)</span>
-                      </div>
+                      {/* Desktop layout */}
+                      <div
+                        className="hidden md:grid md:grid-cols-12 gap-3 items-center p-4 hover:bg-bg/20 transition-colors duration-150"
+                      >
+                        {/* Topic Name */}
+                        <div className="md:col-span-4 flex items-center gap-3 min-w-0">
+                          <CheckCircle className="h-4 w-4 text-success flex-shrink-0" />
+                          <span className="text-sm font-medium text-primary truncate block" title={entry.topic}>
+                            {entry.topic}
+                          </span>
+                        </div>
 
-                      {/* Graded Date */}
-                      <div className="md:col-span-2 text-xs text-secondary">
-                        {formatSavedTime(entry.completedAt ?? entry.date)}
-                      </div>
+                        {/* Color Coded Score Badges */}
+                        <div className="md:col-span-3 flex items-center gap-2">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-bold ${getScoreBadgeClass(scorePercent)}`}>
+                            {scorePercent}%
+                          </span>
+                          <span className="text-xs text-secondary font-medium">({entry.score}/{entry.total} correct)</span>
+                        </div>
 
-                      {/* Row actions */}
-                      <div className="md:col-span-2 flex justify-end items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleReviewFinishedQuiz(entry)}
-                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 border border-border bg-surface hover:bg-bg/50 rounded-md text-xs font-semibold text-primary transition-all duration-150 shadow-sm"
-                          title="Review results"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span>Review</span>
-                        </button>
+                        {/* Graded Date */}
+                        <div className="md:col-span-2 text-xs text-secondary">
+                          {formatSavedTime(entry.completedAt ?? entry.date)}
+                        </div>
+
+                        {/* Row actions */}
+                        <div className="md:col-span-3 flex justify-end items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleReviewFinishedQuiz(entry)}
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 border border-border bg-surface hover:bg-bg/50 rounded-md text-xs font-semibold text-primary transition-all duration-150 shadow-sm"
+                            title="Review results"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>Review</span>
+                          </button>
+                          {entry.result && (
+                            <button
+                              type="button"
+                              disabled={!!sharingId}
+                              onClick={() => {
+                                if (entry.result) {
+                                  handleShareQuiz(entry.id ?? entry.date, entry.result.questions);
+                                }
+                              }}
+                              className="p-1.5 border border-border hover:border-accent hover:bg-accent/5 rounded-md text-secondary hover:text-accent transition-colors disabled:opacity-50"
+                              title="Share quiz"
+                            >
+                              <Share2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
