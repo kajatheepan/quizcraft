@@ -9,10 +9,11 @@ import { useAppStore } from "@/store/useAppStore";
 import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
+import { getShareLinkForQuiz } from "@/lib/shareLinks";
 import { getAILinkSettings, saveAILinkSettings } from "@/lib/storage";
 import type { Question } from "@/types/quiz";
 import type { AILinkSettings, AIProvider } from "@/types/quiz";
-import { Copy, Settings, Share2 } from "lucide-react";
+import { Copy, Settings, Share2, X } from "lucide-react";
 
 type ConfirmAction =
   | { type: "next" }
@@ -452,6 +453,24 @@ export default function QuizView() {
     [quiz.questions]
   );
 
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartY.current = null;
+
+    if (navigatorOpen && deltaY > 60) {
+      setNavigatorOpen(false);
+    } else if (!navigatorOpen && deltaY < -40) {
+      setNavigatorOpen(true);
+    }
+  }, [navigatorOpen]);
+
   const [sharingQuiz, setSharingQuiz] = useState(false);
 
   const handleShareQuiz = async () => {
@@ -467,33 +486,10 @@ export default function QuizView() {
         return;
       }
 
-      // 1. Compress questions
-      const { compressQuiz } = await import("@/lib/compression");
-      const compressed = await compressQuiz(sourceQuestions);
-
-      // 2. Build full sharing URL
-      const baseUrl = window.location.origin;
-      const longUrl = `${baseUrl}/?q=${compressed}`;
-
-      // 3. Shorten URL via our API proxy
-      const response = await fetch("/api/shorten", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: longUrl })
-      });
-
-      let shareUrl = longUrl;
-      if (response.ok) {
-        const data = await response.json();
-        if (data.shortUrl) {
-          shareUrl = data.shortUrl;
-        }
-      }
-
-      // 4. Copy to clipboard
-      const copied = await copyToClipboard(shareUrl);
+      const { url, cacheHit } = await getShareLinkForQuiz(sourceQuestions);
+      const copied = await copyToClipboard(url);
       if (copied) {
-        showToast("Sharing link copied to clipboard!");
+        showToast(cacheHit ? "Cached sharing link copied!" : "Sharing link copied to clipboard!");
       } else {
         showToast("Could not copy link. Try manual selection.");
       }
@@ -937,52 +933,90 @@ export default function QuizView() {
       </aside>
 
       <div className="max-w-[760px] mx-auto px-3 pt-6 pb-20 sm:px-4 sm:pt-10">
-        <div className="lg:hidden mb-4 rounded-lg border border-border bg-surface p-2.5 sm:mb-5 sm:p-3">
-          <button
-            type="button"
-            onClick={() => setNavigatorOpen((current) => !current)}
-            className="flex w-full items-center justify-between rounded-md border border-border bg-bg px-3 py-2 text-sm text-primary transition-colors duration-[150ms] hover:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            aria-expanded={navigatorOpen}
-          >
-            <span className="inline-flex items-center gap-2">
-              <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 text-secondary" aria-hidden="true">
-                <path d="M4 5h12M4 10h12M4 15h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        {/* Mobile Floating Trigger Button */}
+        {!navigatorOpen && (
+          <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
+            <button
+              type="button"
+              onClick={() => setNavigatorOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-accent text-white rounded-full shadow-lg border border-accent/20 font-medium text-sm transition-all hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent"
+              aria-label="Open quiz navigator"
+            >
+              <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 text-white" aria-hidden="true">
+                <path d="M4 5h12M4 10h12M4 15h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
               <span>
-                Questions {quiz.current + 1} / {quiz.questions.length}
+                Questions ({quiz.current + 1}/{quiz.questions.length})
               </span>
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="rounded-full border border-border px-2 py-0.5 text-2xs uppercase tracking-[0.08em] text-secondary">
-                {navigatorOpen ? "Open" : "Closed"}
-              </span>
-              <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 text-secondary" aria-hidden="true">
-                <path
-                  d={navigatorOpen ? "M6 12l4-4 4 4" : "M6 8l4 4 4-4"}
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-          </button>
-          {navigatorOpen && (
-            <div className="mt-3 max-h-45 overflow-y-auto pr-1 border-t border-border pt-3">
-              {renderNavigatorGrid()}
-              <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs">
-                <button
-                  type="button"
-                  disabled={sharingQuiz}
-                  onClick={handleShareQuiz}
-                  className="text-secondary hover:text-primary transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                  <span>{sharingQuiz ? "Generating link..." : "Share quiz"}</span>
-                </button>
-              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Backdrop Overlay for Mobile Drawer */}
+        {navigatorOpen && (
+          <div
+            className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-45 animate-fade-in"
+            onClick={() => setNavigatorOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Mobile Slide-Up Drawer */}
+        <div
+          className={[
+            "lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl border-t border-border shadow-card-lg transition-transform duration-300 ease-out pb-8 px-4 pt-3 max-h-[85vh] flex flex-col",
+            navigatorOpen ? "translate-y-0" : "translate-y-full",
+          ].join(" ")}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Question navigation sheet"
+        >
+          {/* Drag Handle Indicator */}
+          <div className="w-12 h-1 bg-border rounded-full mx-auto mb-3" />
+          
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col">
+              <h2 className="text-base font-semibold text-primary">Quiz Navigation</h2>
+              <p className="text-xs text-secondary">
+                Question {quiz.current + 1} of {quiz.questions.length}
+              </p>
             </div>
-          )}
+            <button
+              type="button"
+              onClick={() => setNavigatorOpen(false)}
+              className="p-1.5 rounded-full hover:bg-bg border border-border text-secondary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Close navigator"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Content (Scrollable Grid) */}
+          <div className="overflow-y-auto py-2 flex-grow pr-1">
+            {renderNavigatorGrid()}
+          </div>
+
+          {/* Footer with actions */}
+          <div className="mt-4 border-t border-border pt-4 flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={handleForward}
+              className="text-accent hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-semibold flex items-center gap-1"
+            >
+              <span>{forwardLabel}</span>
+              <span>→</span>
+            </button>
+            <button
+              type="button"
+              disabled={sharingQuiz}
+              onClick={handleShareQuiz}
+              className="text-secondary hover:text-primary transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-medium disabled:opacity-50"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span>{sharingQuiz ? "Generating link..." : "Share quiz"}</span>
+            </button>
+          </div>
         </div>
 
         <section className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">

@@ -63,6 +63,14 @@ export interface AILinkSettings {
   claude: AIProviderLinkConfig;
 }
 
+export type ShareLinkSource = "short" | "long";
+
+export interface CachedShareLink {
+  url: string;
+  createdAt: string;
+  source: ShareLinkSource;
+}
+
 /** Runtime snapshot of an active quiz round. Persisted inside `QuizSession`. */
 export interface QuizState {
   questions: Question[];
@@ -120,6 +128,7 @@ export interface StoredData {
   activeSession?: QuizSession | null;
   history?: HistoryEntry[];
   aiLinks?: Partial<AILinkSettings>;
+  shareLinks?: Record<string, CachedShareLink>;
   themeMode?: ThemeMode;
 }
 

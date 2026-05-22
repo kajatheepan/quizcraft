@@ -3,7 +3,7 @@
 // and small user preferences. Keep logic minimal and defensive for SSR.
 
 import { STORAGE_KEY } from "@/lib/constants";
-import type { AILinkSettings, HistoryEntry, QuizSession, QuizSettings, QuizState, ResultData, StoredData, ThemeMode } from "@/types/quiz";
+import type { AILinkSettings, CachedShareLink, HistoryEntry, QuizSession, QuizSettings, QuizState, ResultData, StoredData, ThemeMode } from "@/types/quiz";
 
 const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
   chatgpt: { mode: "new", conversationRef: "" },
@@ -151,6 +151,24 @@ function sanitizeAILinks(value: unknown): Partial<AILinkSettings> {
   };
 }
 
+function sanitizeShareLinks(value: unknown): Record<string, CachedShareLink> {
+  if (!isRecord(value)) return {};
+
+  return Object.entries(value).reduce<Record<string, CachedShareLink>>((links, [fingerprint, item]) => {
+    if (!isRecord(item)) return links;
+    const url = safeString(item.url);
+    const createdAt = safeString(item.createdAt);
+    if (!url || !createdAt) return links;
+
+    links[fingerprint] = {
+      url,
+      createdAt,
+      source: item.source === "short" ? "short" : "long",
+    };
+    return links;
+  }, {});
+}
+
 function sanitizeStoredData(value: unknown): StoredData {
   if (!isRecord(value)) return {};
 
@@ -167,6 +185,7 @@ function sanitizeStoredData(value: unknown): StoredData {
     activeSession,
     history: sanitizeHistory(value.history),
     aiLinks: sanitizeAILinks(value.aiLinks),
+    shareLinks: sanitizeShareLinks(value.shareLinks),
     themeMode: value.themeMode === "light" || value.themeMode === "dark" || value.themeMode === "system"
       ? value.themeMode
       : undefined,
@@ -369,6 +388,24 @@ export function saveAILinkSettings(settings: Partial<AILinkSettings>): void {
     claude: { ...current.claude, ...(settings.claude ?? {}) },
   };
   save({ ...data, aiLinks: next });
+}
+
+export function getCachedShareLink(fingerprint: string): CachedShareLink | null {
+  return load().shareLinks?.[fingerprint] ?? null;
+}
+
+export function saveCachedShareLink(fingerprint: string, link: CachedShareLink): void {
+  const data = load();
+  const shareLinks = data.shareLinks ?? {};
+  const nextEntries = [
+    [fingerprint, link] as const,
+    ...Object.entries(shareLinks).filter(([key]) => key !== fingerprint),
+  ].slice(0, 50);
+
+  save({
+    ...data,
+    shareLinks: Object.fromEntries(nextEntries),
+  });
 }
 
 export function getThemeMode(): ThemeMode {

@@ -5,6 +5,7 @@ import { useAppStore } from "@/store/useAppStore";
 import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { buildAIUrl } from "@/lib/aiLinks";
 import { copyToClipboard } from "@/lib/clipboard";
+import { getShareLinkForQuiz } from "@/lib/shareLinks";
 import { getAILinkSettings } from "@/lib/storage";
 import { saveHistory } from "@/lib/storage";
 import { getScoreMessage } from "@/lib/quizEngine";
@@ -288,33 +289,10 @@ export default function ResultsView() {
         return;
       }
 
-      // 1. Compress questions
-      const { compressQuiz } = await import("@/lib/compression");
-      const compressed = await compressQuiz(sourceQuestions);
-
-      // 2. Build full sharing URL
-      const baseUrl = window.location.origin;
-      const longUrl = `${baseUrl}/?q=${compressed}`;
-
-      // 3. Shorten URL via our API proxy
-      const response = await fetch("/api/shorten", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: longUrl })
-      });
-
-      let shareUrl = longUrl;
-      if (response.ok) {
-        const data = await response.json();
-        if (data.shortUrl) {
-          shareUrl = data.shortUrl;
-        }
-      }
-
-      // 4. Copy to clipboard
-      const copied = await copyToClipboard(shareUrl);
+      const { url, cacheHit } = await getShareLinkForQuiz(sourceQuestions);
+      const copied = await copyToClipboard(url);
       if (copied) {
-        showToast("Sharing link copied to clipboard!");
+        showToast(cacheHit ? "Cached sharing link copied!" : "Sharing link copied to clipboard!");
       } else {
         showToast("Could not copy link. Try manual selection.");
       }
