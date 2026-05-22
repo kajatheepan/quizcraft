@@ -15,6 +15,7 @@ import {
 import { DEMO_QUIZ, DEFAULT_SETTINGS } from "@/lib/constants";
 import Toggle from "@/components/ui/Toggle";
 import SegmentedControl from "@/components/ui/SegmentedControl";
+import { Share2 } from "lucide-react";
 import type { QuizSettings, AILinkSettings, AIProvider } from "@/types/quiz";
 
 export default function InputView() {
@@ -119,6 +120,58 @@ export default function InputView() {
     setQuestionCount(0);
     clearLastQuizText();
     showToast("Pasted quiz cleared");
+  };
+
+  const [sharing, setSharing] = useState(false);
+
+  const handleShareQuiz = async () => {
+    if (!isValid || sharing) return;
+    setSharing(true);
+    try {
+      const { questions } = parseQuiz(rawText);
+      if (questions.length === 0) {
+        showToast("Error: No questions found to share.");
+        setSharing(false);
+        return;
+      }
+
+      // 1. Compress questions
+      const { compressQuiz } = await import("@/lib/compression");
+      const compressed = await compressQuiz(questions);
+
+      // 2. Build full sharing URL
+      const baseUrl = window.location.origin;
+      const longUrl = `${baseUrl}/?q=${compressed}`;
+
+      // 3. Shorten URL via our API proxy
+      const response = await fetch("/api/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: longUrl })
+      });
+
+      let shareUrl = longUrl;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.shortUrl) {
+          shareUrl = data.shortUrl;
+        }
+      }
+
+      // 4. Copy to clipboard
+      const { copyToClipboard } = await import("@/lib/clipboard");
+      const copied = await copyToClipboard(shareUrl);
+      if (copied) {
+        showToast("Sharing link copied to clipboard!");
+      } else {
+        showToast("Could not copy link. Try manual selection.");
+      }
+    } catch (err) {
+      console.error("Failed to share quiz:", err);
+      showToast("Error generating sharing link.");
+    } finally {
+      setSharing(false);
+    }
   };
 
   const borderClass =
@@ -363,22 +416,48 @@ export default function InputView() {
         </div>
       </div>
 
-      {/* Start button */}
-      <button
-        type="button"
-        onClick={handleStart}
-        data-tutorial="input-start-quiz"
-        disabled={!isValid}
-        className={`
-          mt-7 w-full py-3.5 px-5 bg-accent text-white rounded-lg
-          text-base font-medium shadow-card text-center
-          transition-all duration-[150ms] ease-out
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg
-          ${isValid ? "hover:opacity-90 active:scale-[0.99] cursor-pointer" : "opacity-30 cursor-not-allowed"}
-        `}
-      >
-        Start Quiz →
-      </button>
+      {/* Action buttons */}
+      <div className="mt-7 flex flex-col sm:flex-row gap-3">
+        <button
+          type="button"
+          onClick={handleStart}
+          data-tutorial="input-start-quiz"
+          disabled={!isValid}
+          className={`
+            flex-1 py-3.5 px-5 bg-accent text-white rounded-lg
+            text-base font-medium shadow-card text-center
+            transition-all duration-[150ms] ease-out
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg
+            ${isValid ? "hover:opacity-90 active:scale-[0.99] cursor-pointer" : "opacity-30 cursor-not-allowed"}
+          `}
+        >
+          Start Quiz →
+        </button>
+
+        <button
+          type="button"
+          onClick={handleShareQuiz}
+          disabled={!isValid || sharing}
+          className={`
+            py-3.5 px-5 rounded-lg border border-border text-primary font-medium
+            text-base text-center transition-all duration-[150ms] ease-out flex items-center justify-center gap-2
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg
+            ${isValid ? "bg-surface hover:bg-bg/50 active:scale-[0.99] cursor-pointer" : "opacity-30 cursor-not-allowed"}
+          `}
+        >
+          {sharing ? (
+            <>
+              <div className="h-4 w-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+              <span>Generating link...</span>
+            </>
+          ) : (
+            <>
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              <span>Share Quiz</span>
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Demo link */}
       <div className="text-center mt-3.5">

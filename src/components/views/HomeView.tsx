@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { clearHistory, getHistory, getInProgressSessions } from "@/lib/storage";
+import { Share2 } from "lucide-react";
 import type { HistoryEntry, QuizSession } from "@/types/quiz";
 
 type HistoryListItem =
@@ -16,6 +17,7 @@ export default function HomeView() {
   const { navigate, restoreSavedQuiz, discardSavedQuiz, loadResult, showToast } = useAppStore();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [inProgressSessions, setInProgressSessions] = useState<QuizSession[]>([]);
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   const refreshSavedData = () => {
     setInProgressSessions(getInProgressSessions());
@@ -38,6 +40,55 @@ export default function HomeView() {
       return;
     }
     loadResult(entry.result);
+  };
+
+  const handleShareHistoryQuiz = async (id: string, questions: any[]) => {
+    if (sharingId) return;
+    setSharingId(id);
+    try {
+      if (!questions || questions.length === 0) {
+        showToast("Error: No questions found to share.");
+        setSharingId(null);
+        return;
+      }
+
+      // 1. Compress questions
+      const { compressQuiz } = await import("@/lib/compression");
+      const compressed = await compressQuiz(questions);
+
+      // 2. Build full sharing URL
+      const baseUrl = window.location.origin;
+      const longUrl = `${baseUrl}/?q=${compressed}`;
+
+      // 3. Shorten URL via our API proxy
+      const response = await fetch("/api/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: longUrl })
+      });
+
+      let shareUrl = longUrl;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.shortUrl) {
+          shareUrl = data.shortUrl;
+        }
+      }
+
+      // 4. Copy to clipboard
+      const { copyToClipboard } = await import("@/lib/clipboard");
+      const copied = await copyToClipboard(shareUrl);
+      if (copied) {
+        showToast("Sharing link copied to clipboard!");
+      } else {
+        showToast("Could not copy link. Try manual selection.");
+      }
+    } catch (err) {
+      console.error("Failed to share quiz from history:", err);
+      showToast("Error generating sharing link.");
+    } finally {
+      setSharingId(null);
+    }
   };
 
   const handleClearHistory = () => {
@@ -124,6 +175,27 @@ export default function HomeView() {
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               Continue quiz
+            </button>
+            <button
+              type="button"
+              disabled={sharingId === latestSession.id}
+              onClick={() => handleShareHistoryQuiz(
+                latestSession.id,
+                latestSession.quiz.original.length > 0 ? latestSession.quiz.original : latestSession.quiz.questions
+              )}
+              className="py-2.5 px-4 border border-border rounded-md text-sm text-secondary
+                         inline-flex items-center justify-center gap-2
+                         hover:text-primary hover:border-secondary transition-colors duration-[150ms]
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+            >
+              {sharingId === latestSession.id ? (
+                "Sharing..."
+              ) : (
+                <>
+                  <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Share Quiz</span>
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -222,6 +294,18 @@ export default function HomeView() {
                     </button>
                     <button
                       type="button"
+                      disabled={sharingId === session.id}
+                      onClick={() => handleShareHistoryQuiz(
+                        session.id,
+                        session.quiz.original.length > 0 ? session.quiz.original : session.quiz.questions
+                      )}
+                      className="text-xs text-secondary hover:text-primary transition-colors duration-[150ms]
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-50"
+                    >
+                      {sharingId === session.id ? "Sharing..." : "Share"}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDiscardSavedQuiz(session.id)}
                       className="text-xs text-secondary hover:text-primary transition-colors duration-[150ms]
                                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -259,6 +343,20 @@ export default function HomeView() {
                   >
                     Review
                   </button>
+                  {entry.result && (
+                    <button
+                      type="button"
+                      disabled={sharingId === (entry.id ?? `finished-${index}`)}
+                      onClick={() => handleShareHistoryQuiz(
+                        entry.id ?? `finished-${index}`,
+                        entry.result!.questions
+                      )}
+                      className="text-xs text-secondary hover:text-primary transition-colors duration-[150ms]
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm disabled:opacity-50"
+                    >
+                      {sharingId === (entry.id ?? `finished-${index}`) ? "Sharing..." : "Share"}
+                    </button>
+                  )}
                 </div>
               </div>
             );

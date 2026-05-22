@@ -176,6 +176,7 @@ export default function ResultsView() {
   const { result, quiz } = state;
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const [barWidth, setBarWidth] = useState(0);
+  const [sharingQuiz, setSharingQuiz] = useState(false);
   const savedRef = useRef(false);
 
   useEffect(() => {
@@ -264,14 +265,65 @@ export default function ResultsView() {
 
   const message = getScoreMessage(percentage);
 
-  const handleShare = async () => {
+  const handleShareScore = async () => {
     const text = `I scored ${percentage}% on a quiz! (${correct}/${total} correct) — QuizCraft Plus`;
     const copied = await copyToClipboard(text);
     if (copied) {
-      showToast("Copied to clipboard!");
+      showToast("Score copied to clipboard!");
       return;
     }
     showToast("Copy failed. Select the text and copy manually.");
+  };
+
+  const handleShareQuiz = async () => {
+    if (sharingQuiz) return;
+    setSharingQuiz(true);
+    try {
+      const sourceQuestions = quiz.original.length > 0
+        ? quiz.original
+        : result?.questions ?? quiz.questions;
+      if (!sourceQuestions || sourceQuestions.length === 0) {
+        showToast("Error: No questions found to share.");
+        setSharingQuiz(false);
+        return;
+      }
+
+      // 1. Compress questions
+      const { compressQuiz } = await import("@/lib/compression");
+      const compressed = await compressQuiz(sourceQuestions);
+
+      // 2. Build full sharing URL
+      const baseUrl = window.location.origin;
+      const longUrl = `${baseUrl}/?q=${compressed}`;
+
+      // 3. Shorten URL via our API proxy
+      const response = await fetch("/api/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: longUrl })
+      });
+
+      let shareUrl = longUrl;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.shortUrl) {
+          shareUrl = data.shortUrl;
+        }
+      }
+
+      // 4. Copy to clipboard
+      const copied = await copyToClipboard(shareUrl);
+      if (copied) {
+        showToast("Sharing link copied to clipboard!");
+      } else {
+        showToast("Could not copy link. Try manual selection.");
+      }
+    } catch (err) {
+      console.error("Failed to share quiz:", err);
+      showToast("Error generating sharing link.");
+    } finally {
+      setSharingQuiz(false);
+    }
   };
 
   const handleOpenProvider = (provider: AIProvider, prompt: string) => {
@@ -349,17 +401,20 @@ export default function ResultsView() {
 
         <div className="mt-6 flex flex-wrap justify-center items-center gap-0 text-sm">
           {[
-            { label: "Try again", action: retryQuiz },
-            { label: "New quiz", action: () => navigate("input") },
-            { label: "Share", action: handleShare },
+            { label: "Try again", action: retryQuiz, disabled: false },
+            { label: "New quiz", action: () => navigate("input"), disabled: false },
+            { label: "Share score", action: handleShareScore, disabled: false },
+            { label: sharingQuiz ? "Generating link..." : "Share quiz", action: handleShareQuiz, disabled: sharingQuiz },
           ].map((item, i) => (
             <span key={item.label} className="flex items-center">
               {i > 0 && <span className="text-secondary mx-2.5">·</span>}
               <button
                 type="button"
                 onClick={item.action}
-                className="text-primary hover:text-secondary transition-colors duration-[150ms]
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                disabled={item.disabled}
+                className={`text-primary hover:text-secondary transition-colors duration-[150ms]
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm
+                           ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {item.label}
               </button>
