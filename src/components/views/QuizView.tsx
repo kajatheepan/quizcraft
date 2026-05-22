@@ -720,7 +720,12 @@ export default function QuizView() {
         <button
           key={`idx-${i}`}
           type="button"
-          onClick={() => requestNavigation({ type: "goto", index: i })}
+          onClick={() => {
+            requestNavigation({ type: "goto", index: i });
+            if (typeof window !== "undefined" && window.innerWidth < 1024) {
+              setNavigatorOpen(false);
+            }
+          }}
           data-tutorial="quiz-nav-jump"
           className={getNavigatorButtonClass(i)}
           aria-label={`Jump to question ${i + 1}`}
