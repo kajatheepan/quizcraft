@@ -1,6 +1,24 @@
 import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { vi } from "vitest";
+import { CompressionStream, DecompressionStream } from "node:stream/web";
+
+// Polyfill CompressionStream and DecompressionStream for Vitest JSDOM environment
+if (typeof global.CompressionStream === "undefined") {
+  (global as any).CompressionStream = CompressionStream;
+}
+if (typeof global.DecompressionStream === "undefined") {
+  (global as any).DecompressionStream = DecompressionStream;
+}
+if (typeof window !== "undefined") {
+  if (typeof (window as any).CompressionStream === "undefined") {
+    (window as any).CompressionStream = CompressionStream;
+  }
+  if (typeof (window as any).DecompressionStream === "undefined") {
+    (window as any).DecompressionStream = DecompressionStream;
+  }
+}
+
 
 const storage = (() => {
   let store: Record<string, string> = {};

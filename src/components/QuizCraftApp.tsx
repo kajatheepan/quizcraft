@@ -74,8 +74,55 @@ function AnimatedView({
 }
 
 export default function QuizCraftApp() {
-  const { state } = useAppStore();
+  const { state, startQuiz, showToast } = useAppStore();
   const currentView = state.view;
+  const [loadingShared, setLoadingShared] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const compressed = params.get("q");
+
+    if (compressed) {
+      setLoadingShared(true);
+      const timer = setTimeout(() => {
+        import("@/lib/compression")
+          .then(({ decompressQuiz }) => decompressQuiz(compressed))
+          .then((questions) => {
+            if (questions && questions.length > 0) {
+              startQuiz(questions, state.settings);
+              showToast("Shared quiz loaded successfully!");
+            } else {
+              showToast("Shared quiz has no questions.");
+            }
+          })
+          .catch((err) => {
+            console.error("Decompression failed:", err);
+            showToast("Failed to load shared quiz. Link may be broken.");
+          })
+          .finally(() => {
+            const newUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, newUrl);
+            setLoadingShared(false);
+          });
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [startQuiz, showToast, state.settings]);
+
+  if (loadingShared) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg/95 backdrop-blur-md">
+        <div className="flex flex-col items-center gap-4 animate-fade-in text-center px-6">
+          <div className="h-12 w-12 rounded-full border-4 border-accent/20 border-t-accent animate-spin" />
+          <h2 className="text-lg font-semibold text-primary">Loading shared quiz...</h2>
+          <p className="text-sm text-secondary">Preparing your active practice session</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
