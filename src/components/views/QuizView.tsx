@@ -937,109 +937,7 @@ export default function QuizView() {
         </div>
       </aside>
 
-      <div className="max-w-[760px] mx-auto px-3 pt-6 pb-20 sm:px-4 sm:pt-10">
-        {/* Backdrop Overlay for Mobile Drawer */}
-        {navigatorOpen && (
-          <div
-            className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-45 animate-fade-in"
-            onClick={() => setNavigatorOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-
-        {/* Mobile Swipeable Collapsible Bottom Sheet Drawer */}
-        <div
-          className={[
-            "lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl border-t border-border shadow-card-lg transition-transform duration-300 ease-out flex flex-col max-h-[85vh] select-none",
-            navigatorOpen ? "pb-8 h-[85vh]" : "pb-0 h-12 overflow-hidden"
-          ].join(" ")}
-          style={{
-            transform: navigatorOpen ? "translateY(0)" : "translateY(calc(100% - 48px))"
-          }}
-          role="dialog"
-          aria-modal={navigatorOpen ? "true" : "false"}
-          aria-label="Question navigation sheet"
-        >
-          {/* Header / Grab Handle Area (Acts as the trigger bar when collapsed) */}
-          <div
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onClick={!navigatorOpen ? () => setNavigatorOpen(true) : undefined}
-            className={[
-              "w-full pt-3 pb-3 px-4 cursor-pointer relative select-none",
-              !navigatorOpen ? "h-12 flex items-center justify-between" : "flex items-center justify-between border-b border-border/40"
-            ].join(" ")}
-          >
-            {/* Drag Handle Indicator */}
-            <div className="w-12 h-1 bg-border rounded-full absolute top-1.5 left-1/2 -translate-x-1/2" />
-            
-            <div className="flex flex-col">
-              <h2 className="text-sm font-semibold text-primary">
-                {!navigatorOpen ? `Questions (${quiz.current + 1}/${quiz.questions.length})` : "Quiz Navigation"}
-              </h2>
-              {navigatorOpen && (
-                <p className="text-xs text-secondary">
-                  Question {quiz.current + 1} of {quiz.questions.length}
-                </p>
-              )}
-            </div>
-
-            {/* Right Action / Indicator */}
-            <div>
-              {!navigatorOpen ? (
-                <span className="text-2xs font-semibold text-accent uppercase tracking-wider flex items-center gap-1">
-                  Swipe up or Tap
-                  <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3 stroke-current animate-bounce" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="18 15 12 9 6 15"></polyline>
-                  </svg>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setNavigatorOpen(false);
-                  }}
-                  className="p-1.5 rounded-full hover:bg-bg border border-border text-secondary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  aria-label="Close navigator"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Drawer Content - only scrollable / interactive when expanded */}
-          {navigatorOpen && (
-            <div className="overflow-y-auto px-4 py-3 flex-grow pr-1">
-              {renderNavigatorGrid()}
-            </div>
-          )}
-
-          {/* Footer with actions - only visible when expanded */}
-          {navigatorOpen && (
-            <div className="mt-auto px-4 pt-4 pb-8 border-t border-border flex items-center justify-between text-sm bg-surface">
-              <button
-                type="button"
-                disabled={sharingQuiz}
-                onClick={handleShareQuiz}
-                className="text-secondary hover:text-primary transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-medium disabled:opacity-50"
-              >
-                <Share2 className="h-3.5 w-3.5" />
-                <span>{sharingQuiz ? "Generating link..." : "Share quiz"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleForward}
-                className="text-accent hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-semibold flex items-center gap-1"
-              >
-                <span>{forwardLabel}</span>
-                <span>→</span>
-              </button>
-            </div>
-          )}
-        </div>
+      <div className={`max-w-[760px] mx-auto px-3 pt-6 pb-20 sm:px-4 sm:pt-10 ${navigatorOpen ? "pointer-events-none lg:pointer-events-auto" : ""}`}>
 
         <section className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
           <div className="border-b border-border px-4 py-3 sm:px-7 sm:py-4">
@@ -1219,6 +1117,109 @@ export default function QuizView() {
             </div>
           </div>
         </section>
+      </div>
+
+      {/* Backdrop Overlay for Mobile Drawer */}
+      {navigatorOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-45 animate-fade-in"
+          onClick={() => setNavigatorOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile Swipeable Collapsible Bottom Sheet Drawer */}
+      <div
+        className={[
+          "lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl border-t border-border shadow-card-lg transition-transform duration-300 ease-out flex flex-col max-h-[85vh] select-none",
+          navigatorOpen ? "pb-8 h-auto" : "pb-0 h-12 overflow-hidden"
+        ].join(" ")}
+        style={{
+          transform: navigatorOpen ? "translateY(0)" : "translateY(calc(100% - 48px))"
+        }}
+        role="dialog"
+        aria-modal={navigatorOpen ? "true" : "false"}
+        aria-label="Question navigation sheet"
+      >
+        {/* Header / Grab Handle Area (Acts as the trigger bar when collapsed) */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onClick={!navigatorOpen ? () => setNavigatorOpen(true) : undefined}
+          className={[
+            "w-full pt-3 pb-3 px-4 cursor-pointer relative select-none",
+            !navigatorOpen ? "h-12 flex items-center justify-between" : "flex items-center justify-between border-b border-border/40"
+          ].join(" ")}
+        >
+          {/* Drag Handle Indicator */}
+          <div className="w-12 h-1 bg-border rounded-full absolute top-1.5 left-1/2 -translate-x-1/2" />
+          
+          <div className="flex flex-col">
+            <h2 className="text-sm font-semibold text-primary">
+              {!navigatorOpen ? `Questions (${quiz.current + 1}/${quiz.questions.length})` : "Quiz Navigation"}
+            </h2>
+            {navigatorOpen && (
+              <p className="text-xs text-secondary">
+                Question {quiz.current + 1} of {quiz.questions.length}
+              </p>
+            )}
+          </div>
+
+          {/* Right Action / Indicator */}
+          <div>
+            {!navigatorOpen ? (
+              <span className="text-2xs font-semibold text-accent uppercase tracking-wider flex items-center gap-1">
+                Swipe up or Tap
+                <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3 stroke-current animate-bounce" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNavigatorOpen(false);
+                }}
+                className="p-1.5 rounded-full hover:bg-bg border border-border text-secondary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                aria-label="Close navigator"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Drawer Content - only scrollable / interactive when expanded */}
+        {navigatorOpen && (
+          <div className="overflow-y-auto px-4 py-3 flex-grow pr-1">
+            {renderNavigatorGrid()}
+          </div>
+        )}
+
+        {/* Footer with actions - only visible when expanded */}
+        {navigatorOpen && (
+          <div className="mt-auto px-4 pt-4 pb-8 border-t border-border flex items-center justify-between text-sm bg-surface">
+            <button
+              type="button"
+              disabled={sharingQuiz}
+              onClick={handleShareQuiz}
+              className="text-secondary hover:text-primary transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-medium disabled:opacity-50"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span>{sharingQuiz ? "Generating link..." : "Share quiz"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleForward}
+              className="text-accent hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm font-semibold flex items-center gap-1"
+            >
+              <span>{forwardLabel}</span>
+              <span>→</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {pendingConfirmAction && (
