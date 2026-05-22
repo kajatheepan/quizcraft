@@ -33,7 +33,7 @@ const PROMPT_MODES: Array<{ label: string; value: PromptMode; description: strin
   {
     label: "Format only",
     value: "format",
-    description: "Only the QuizCraft JSON contract for your own custom prompt.",
+    description: "Only the root title + questions JSON contract for your own custom prompt.",
   },
 ];
 

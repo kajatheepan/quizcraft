@@ -33,7 +33,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     section: "Create Quiz",
     title: "Paste your quiz JSON",
     body:
-      "Click Paste a Quiz to open the input screen.\nThis is where you paste the quiz output you got from your AI assistant.",
+      "Click Paste a Quiz to open the input screen.\nPaste a JSON object shaped like { \"title\": \"Quiz title\", \"questions\": [...] } from your AI assistant.",
     placement: "bottom",
     advanceOnClick: true,
   },

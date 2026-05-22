@@ -92,6 +92,7 @@ describe("buildPrompt", () => {
 
     expect(prompt).toContain("Use this QuizCraft JSON format");
     expect(prompt).toContain("You can write your own quiz instructions above this format");
+    expect(prompt).toContain('"title": "Quiz title"');
     expect(prompt).toContain('"questions": [');
     expect(prompt).not.toContain("Question quality policy");
     expect(prompt).not.toContain("Source policy");

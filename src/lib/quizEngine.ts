@@ -177,6 +177,14 @@ export function buildPrompt(
   const formatIntro = promptMode === "format"
     ? `Use this QuizCraft JSON format for your quiz output. Return ONLY valid JSON. Do not wrap the response in markdown.
 
+Root contract:
+{
+  "title": "Quiz title",
+  "questions": [
+    ...
+  ]
+}
+
 You can write your own quiz instructions above this format in ChatGPT or Claude. The final answer must still follow this exact JSON contract.`
     : `You are an expert university-level quiz designer. Return ONLY valid JSON. Do not wrap the response in markdown.
 
@@ -246,6 +254,7 @@ Use this exact JSON shape:
 Rules:
 - Return JSON only, with no trailing commentary.
 - Add a short, descriptive, professional "title" field at the root of the JSON object that summarizes the quiz topic (e.g. "Data Link Layer Protocols").
+- Keep the root shape exactly { "title": ..., "questions": [...] }.
 - MCQ questions must have exactly four options: A, B, C, and D.
 - FILL questions can use fillMode "typed" for direct answers or "dragdrop" for paragraph blanks.
 - For typed fill answers, include acceptedAnswers when multiple phrasings should count as correct.
