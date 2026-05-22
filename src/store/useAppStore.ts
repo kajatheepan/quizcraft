@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useReducer } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import { buildResultData, checkAnswer, getQuestionStats, prepareQuestions } from "@/lib/quizEngine";
+import { createQuizFingerprint } from "@/lib/shareLinks";
 import {
   clearActiveSession,
   getActiveSession,
@@ -45,6 +46,7 @@ const initialQuizState: QuizState = {
   startTime: null,
   settings: DEFAULT_SETTINGS,
   answered: false,
+  sessionId: undefined,
 };
 
 const initialState: AppState = {
@@ -62,7 +64,7 @@ const initialState: AppState = {
 type Action =
   | { type: "NAVIGATE"; view: ViewName }
   | { type: "NAVIGATE_BACK"; fallback?: ViewName }
-  | { type: "START_QUIZ"; questions: Question[]; settings: QuizSettings; title?: string }
+  | { type: "START_QUIZ"; questions: Question[]; settings: QuizSettings; title?: string; sessionId?: string }
   | { type: "ANSWER_QUESTION"; response: string | string[] }
   | { type: "SKIP_QUESTION" }
   | { type: "TIMEOUT_QUESTION"; response?: string | string[] | null }
@@ -168,6 +170,8 @@ function reducer(state: AppState, action: Action): AppState {
         settings: action.settings,
         answered: false,
         title: action.title,
+        sessionId: action.sessionId,
+        fingerprint: createQuizFingerprint(action.questions),
       });
       return {
         ...state,
@@ -296,6 +300,7 @@ function reducer(state: AppState, action: Action): AppState {
         skipped: 0,
         startTime: Date.now(),
         answered: false,
+        sessionId: undefined,
       });
       return {
         ...state,
@@ -373,14 +378,16 @@ function buildSessionFromState(state: AppState): QuizSession | null {
 
   const startedAt = new Date(quiz.startTime ?? Date.now()).toISOString();
   const title = quiz.title || (quiz.original[0]?.question ?? quiz.questions[0]?.question ?? "Quiz");
+  const sessionId = quiz.sessionId || String(quiz.startTime ?? Date.now());
 
   return {
-    id: String(quiz.startTime ?? Date.now()),
+    id: sessionId,
     title,
     createdAt: startedAt,
     updatedAt: new Date().toISOString(),
     status: "in-progress",
     quiz,
+    fingerprint: quiz.fingerprint,
   };
 }
 
@@ -391,7 +398,7 @@ function syncActiveSession(action: Action, state: AppState) {
   }
 
   if (state.view === "results") {
-    clearActiveSession(String(state.quiz.startTime ?? ""));
+    clearActiveSession(state.quiz.sessionId || String(state.quiz.startTime ?? ""));
     return;
   }
 
@@ -420,8 +427,8 @@ export function useAppStore() {
   const navigate = useCallback((view: ViewName) => dispatch({ type: "NAVIGATE", view }), []);
   const navigateBack = useCallback((fallback?: ViewName) => dispatch({ type: "NAVIGATE_BACK", fallback }), []);
 
-  const startQuiz = useCallback((questions: Question[], settings: QuizSettings, title?: string) => {
-    dispatch({ type: "START_QUIZ", questions, settings, title });
+  const startQuiz = useCallback((questions: Question[], settings: QuizSettings, title?: string, sessionId?: string) => {
+    dispatch({ type: "START_QUIZ", questions, settings, title, sessionId });
     // Fire-and-forget: increment the global quiz counter. Never awaited so it
     // never delays or blocks the quiz starting.
     fetch("/api/track", { method: "POST" }).catch(() => {});

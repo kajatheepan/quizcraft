@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const shareStoreMocks = vi.hoisted(() => ({
-  getSharedQuiz: vi.fn(),
+  getSharedQuizData: vi.fn(),
   isValidShareId: vi.fn((id: string) => /^[A-Za-z0-9_-]{16}$/.test(id)),
 }));
 
 vi.mock("@/lib/server/shareStore", () => ({
-  getSharedQuiz: shareStoreMocks.getSharedQuiz,
+  getSharedQuizData: shareStoreMocks.getSharedQuizData,
   isValidShareId: shareStoreMocks.isValidShareId,
 }));
 
@@ -17,12 +17,16 @@ async function loadRoute() {
 
 describe("GET /api/share/[id]", () => {
   beforeEach(() => {
-    shareStoreMocks.getSharedQuiz.mockReset();
+    shareStoreMocks.getSharedQuizData.mockReset();
     shareStoreMocks.isValidShareId.mockClear();
   });
 
   it("returns quiz data for a valid share id", async () => {
-    shareStoreMocks.getSharedQuiz.mockResolvedValue([{ id: 1, question: "Question?" }]);
+    shareStoreMocks.getSharedQuizData.mockResolvedValue({
+      questions: [{ id: 1, question: "Question?" }],
+      title: "Shared Quiz Title",
+      count: 1,
+    });
     const { GET } = await loadRoute();
 
     const response = await GET(
@@ -33,10 +37,11 @@ describe("GET /api/share/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(data.questions).toHaveLength(1);
+    expect(data.title).toBe("Shared Quiz Title");
   });
 
   it("returns 404 when a share id is missing or expired", async () => {
-    shareStoreMocks.getSharedQuiz.mockResolvedValue(null);
+    shareStoreMocks.getSharedQuizData.mockResolvedValue(null);
     const { GET } = await loadRoute();
 
     const response = await GET(
@@ -56,6 +61,6 @@ describe("GET /api/share/[id]", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(shareStoreMocks.getSharedQuiz).not.toHaveBeenCalled();
+    expect(shareStoreMocks.getSharedQuizData).not.toHaveBeenCalled();
   });
 });

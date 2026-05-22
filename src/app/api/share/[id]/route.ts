@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSharedQuiz, isValidShareId } from "@/lib/server/shareStore";
+import { getSharedQuizData, isValidShareId } from "@/lib/server/shareStore";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +13,12 @@ export async function GET(
   }
 
   try {
-    const questions = await getSharedQuiz(shareId);
-    if (!questions) {
+    const data = await getSharedQuizData(shareId);
+    if (!data) {
       return NextResponse.json({ error: "Shared quiz not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ questions });
+    return NextResponse.json({ questions: data.questions, title: data.title });
   } catch (error: any) {
     console.error("Shared quiz lookup failed:", error);
     return NextResponse.json({ error: error.message ?? "Failed to load shared quiz" }, { status: 500 });

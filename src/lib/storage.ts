@@ -3,7 +3,7 @@
 // and small user preferences. Keep logic minimal and defensive for SSR.
 
 import { STORAGE_KEY } from "@/lib/constants";
-import type { AILinkSettings, CachedShareLink, HistoryEntry, QuizSession, QuizSettings, QuizState, ResultData, StoredData, ThemeMode } from "@/types/quiz";
+import type { AILinkSettings, CachedShareLink, HistoryEntry, QuizSession, QuizSessionStatus, QuizSettings, QuizState, ResultData, StoredData, ThemeMode } from "@/types/quiz";
 
 const DEFAULT_AI_LINK_SETTINGS: AILinkSettings = {
   chatgpt: { mode: "new", conversationRef: "" },
@@ -66,6 +66,8 @@ function sanitizeQuizState(value: unknown): QuizState | null {
     settings: sanitizeQuizSettings(value.settings),
     answered: typeof value.answered === "boolean" ? value.answered : false,
     title: safeString(value.title) || undefined,
+    sessionId: safeString(value.sessionId) || undefined,
+    fingerprint: safeString(value.fingerprint) || undefined,
   };
 }
 
@@ -118,11 +120,11 @@ function sanitizeHistory(value: unknown): HistoryEntry[] {
 
 function sanitizeSessions(value: unknown): QuizSession[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(isRecord).flatMap((item) => {
+  const sessions = value.filter(isRecord).flatMap((item) => {
     const quiz = sanitizeQuizState(item.quiz);
     if (!quiz) return [];
 
-    const status = item.status === "completed" ? "completed" : "in-progress";
+    const status: QuizSessionStatus = item.status === "completed" ? "completed" : "in-progress";
     const now = new Date().toISOString();
     return [{
       id: safeString(item.id, quiz.startTime !== null ? String(quiz.startTime) : safeString(item.createdAt, String(Date.now()))),
@@ -132,7 +134,16 @@ function sanitizeSessions(value: unknown): QuizSession[] {
       completedAt: typeof item.completedAt === "string" ? item.completedAt : undefined,
       status,
       quiz,
+      fingerprint: safeString(item.fingerprint) || undefined,
     }];
+  });
+
+  const seen = new Set<string>();
+  return sessions.filter((session) => {
+    const key = session.fingerprint ? `fp:${session.fingerprint}` : `id:${session.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
@@ -288,7 +299,13 @@ export function getSessionById(sessionId: string): QuizSession | null {
 export function saveSession(session: QuizSession): void {
   const data = load();
   const sessions = data.sessions ?? [];
-  const next = [session, ...sessions.filter((item) => item.id !== session.id)];
+  const next = [
+    session,
+    ...sessions.filter((item) =>
+      item.id !== session.id &&
+      (!session.fingerprint || item.fingerprint !== session.fingerprint)
+    ),
+  ];
   save({ ...data, sessions: next, activeSession: null });
 }
 

@@ -84,6 +84,8 @@ export interface QuizState {
   settings: QuizSettings;
   answered: boolean;
   title?: string;
+  sessionId?: string;
+  fingerprint?: string;
 }
 
 /** Result payload produced when a quiz completes. */
@@ -120,6 +122,7 @@ export interface QuizSession {
   completedAt?: string;
   status: QuizSessionStatus;
   quiz: QuizState;
+  fingerprint?: string;
 }
 
 export interface StoredData {

@@ -98,7 +98,7 @@ export default function QuizCraftApp() {
           .then(({ decompressQuiz }) => decompressQuiz(compressed))
           .then((questions) => {
             if (questions && questions.length > 0) {
-              startQuiz(questions, state.settings);
+              startQuiz(questions, state.settings, undefined, `q:${compressed}`);
               showToast("Shared quiz loaded successfully!");
             } else {
               showToast("Shared quiz has no questions.");
@@ -135,7 +135,7 @@ export default function QuizCraftApp() {
           })
           .then((data) => {
             if (Array.isArray(data.questions) && data.questions.length > 0) {
-              startQuiz(data.questions, state.settings);
+              startQuiz(data.questions, state.settings, typeof data.title === "string" ? data.title : undefined, `id:${shareId}`);
               showToast("Shared quiz loaded successfully!");
             } else {
               showToast("Shared quiz has no questions.");

@@ -72,23 +72,7 @@ export async function createSharedQuiz(questions: Question[], title?: string) {
   throw new Error("Could not create a unique share link");
 }
 
-export async function getSharedQuiz(shareId: string): Promise<Question[] | null> {
-  if (!isValidShareId(shareId)) return null;
-
-  const payload = await getRedis().get<StoredSharePayload>(`share:${shareId}`);
-  if (!payload || payload.v !== 1 || !Array.isArray(payload.q)) {
-    return null;
-  }
-
-  return expandQuiz(payload.q);
-}
-
-/** Returns lightweight metadata (title + question count) without fully decompressing.
- *  Used for OG metadata generation in the share page's generateMetadata().
- */
-export async function getSharedQuizMeta(
-  shareId: string
-): Promise<{ title: string; count: number } | null> {
+export async function getSharedQuizData(shareId: string): Promise<{ questions: Question[]; title: string; count: number } | null> {
   if (!isValidShareId(shareId)) return null;
 
   const payload = await getRedis().get<StoredSharePayload>(`share:${shareId}`);
@@ -97,7 +81,28 @@ export async function getSharedQuizMeta(
   }
 
   return {
+    questions: expandQuiz(payload.q),
     title: payload.title ?? "",
     count: payload.q.length,
+  };
+}
+
+export async function getSharedQuiz(shareId: string): Promise<Question[] | null> {
+  const data = await getSharedQuizData(shareId);
+  return data?.questions ?? null;
+}
+
+/** Returns lightweight metadata (title + question count) without fully decompressing.
+ *  Used for OG metadata generation in the share page's generateMetadata().
+ */
+export async function getSharedQuizMeta(
+  shareId: string
+): Promise<{ title: string; count: number } | null> {
+  const data = await getSharedQuizData(shareId);
+  if (!data) return null;
+
+  return {
+    title: data.title,
+    count: data.count,
   };
 }
