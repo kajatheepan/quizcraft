@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createSharedQuiz } from "@/lib/server/shareStore";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   try {
     const { questions } = await request.json();

@@ -24,6 +24,8 @@ const VIEW_COMPONENTS: Record<ViewName, React.ComponentType> = {
   prompt:  PromptView,
 };
 
+const SHARED_QUIZ_TIMEOUT_MS = 10000;
+
 // Animated view wrapper
 function AnimatedView({
   name,
@@ -121,7 +123,10 @@ export default function QuizCraftApp() {
       loadedSharedRef.current = `id:${shareId}`;
       setLoadingShared(true);
       const timer = setTimeout(() => {
-        fetch(`/api/share/${shareId}`)
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), SHARED_QUIZ_TIMEOUT_MS);
+
+        fetch(`/api/share/${shareId}`, { signal: controller.signal })
           .then((response) => {
             if (!response.ok) {
               throw new Error("Shared quiz not found");
@@ -141,6 +146,7 @@ export default function QuizCraftApp() {
             showToast("Shared quiz link is missing or expired.");
           })
           .finally(() => {
+            clearTimeout(timeout);
             setLoadingShared(false);
           });
       }, 300);

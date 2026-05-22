@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSharedQuiz, isValidShareId } from "@/lib/server/shareStore";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
